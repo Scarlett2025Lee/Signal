@@ -145,6 +145,36 @@ export interface FollowUp {
   contact_name: string | null;
   contact_email: string | null;
 }
+export type Track = 'PM' | 'GTM' | 'Data';
+export interface EmailTemplate {
+  id: number;
+  name: string;
+  subject: string;
+  body: string;
+  updated_at: string;
+}
+export interface GeneratedEmail {
+  outreach_id: number;
+  to: string;
+  subject: string;
+  body: string;
+  context: Record<string, string>;
+}
+export interface EmailDraft {
+  id: number;
+  outreach_id: number;
+  subject: string;
+  body: string;
+  status: 'draft' | 'reviewed' | 'sent_manually';
+  created_at: string;
+  company_name: string;
+  contact_email: string | null;
+}
+export const draftStatusLabels: Record<EmailDraft['status'], string> = {
+  draft: 'Draft',
+  reviewed: 'Reviewed',
+  sent_manually: 'Sent manually',
+};
 export const outreachStatusLabels: Record<OutreachStatus, string> = {
   research: 'Research',
   ready: 'Ready to reach out',

@@ -32,7 +32,7 @@ describe('workspace navigation', () => {
       expect(link).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(link.textContent!);
       // Pages that are built show their own content; the rest show the scaffold note.
-      const built = ['Companies', 'Contacts', 'Outreach CRM', 'Follow-up tracker'];
+      const built = ['Companies', 'Contacts', 'Outreach CRM', 'Cold Email Generator', 'Follow-up tracker'];
       if (!built.includes(link.textContent!)) expect(screen.getByText(/This section is scaffolded/)).toBeVisible();
     }
     await user.click(within(navigation).getByRole('link', { name: 'Dashboard' }));

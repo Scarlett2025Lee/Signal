@@ -7,6 +7,7 @@ import { api, type Outreach as OutreachRecord, type FollowUp } from './lib/api';
 import Outreach from './Outreach';
 import Contacts from './Contacts';
 import FollowUps from './FollowUps';
+import ColdEmail from './ColdEmail';
 
 vi.mock('./lib/api', async importOriginal => ({
   ...(await importOriginal<typeof import('./lib/api')>()),
@@ -99,4 +100,38 @@ it('shows an empty contacts state and an overdue follow-up that can be completed
   expect(await screen.findByText(/Overdue/)).toBeVisible();
   await user.click(screen.getByRole('button', { name: /Done/ }));
   expect(api).toHaveBeenCalledWith('/api/follow-ups/9', 'PUT', { status: 'completed' });
+});
+
+it('generates an editable email draft and records a manual send', async () => {
+  routes({
+    '/api/email/template': { id: 1, name: 'Default', subject: 'S', body: 'B', updated_at: '' },
+    '/api/email/drafts': [],
+    '/api/email/generate': {
+      outreach_id: 7,
+      to: 'ada@fixture.example',
+      subject: 'Congrats, Fixture Labs',
+      body: 'Hi Ada,\n\n[Your background]',
+      context: {},
+    },
+  });
+  const user = userEvent.setup();
+  renderPage(<ColdEmail />);
+  const composer = await screen.findByRole('region', { name: 'Email composer' });
+  await screen.findByRole('option', { name: /Fixture Labs/ });
+  await user.selectOptions(within(composer).getByRole('combobox', { name: 'Outreach' }), '7');
+  await user.selectOptions(within(composer).getByRole('combobox', { name: 'Lead with' }), 'GTM');
+  await user.click(within(composer).getByRole('button', { name: 'Generate draft' }));
+  expect(api).toHaveBeenCalledWith('/api/email/generate', 'POST', { outreach_id: 7, track: 'GTM' });
+  expect(await within(composer).findByDisplayValue('Congrats, Fixture Labs')).toBeVisible();
+  expect(screen.getByText(/Replace the \[bracketed\] parts/)).toBeVisible();
+  expect(within(composer).getByRole('link', { name: 'Open in email app' })).toHaveAttribute(
+    'href',
+    expect.stringMatching(/^mailto:ada%40fixture\.example\?subject=Congrats%2C%20Fixture%20Labs&body=/),
+  );
+  await user.click(within(composer).getByRole('button', { name: 'I sent it' }));
+  expect(api).toHaveBeenCalledWith(
+    '/api/email/drafts',
+    'POST',
+    expect.objectContaining({ outreach_id: 7, status: 'sent_manually', track: 'GTM' }),
+  );
 });

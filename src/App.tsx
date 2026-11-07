@@ -27,9 +27,15 @@ import UpdateNotice from './UpdateNotice';
 import Contacts from './Contacts';
 import Outreach from './Outreach';
 import FollowUps from './FollowUps';
+import ColdEmail from './ColdEmail';
 
 /** Sections with a real page; the rest still show the scaffold placeholder. */
-const pages: Record<string, ComponentType> = { '/contacts': Contacts, '/outreach': Outreach, '/follow-ups': FollowUps };
+const pages: Record<string, ComponentType> = {
+  '/contacts': Contacts,
+  '/outreach': Outreach,
+  '/follow-ups': FollowUps,
+  '/email': ColdEmail,
+};
 
 const sections: { path: string; label: string; icon: LucideIcon; group: string; description: string; next: string }[] =
   [

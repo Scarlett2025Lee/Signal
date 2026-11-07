@@ -4,6 +4,7 @@ import { createApp } from './app.mjs';
 import { createFundingService } from './funding.mjs';
 import { createCompaniesService } from './companies.mjs';
 import { createCrmService } from './crm.mjs';
+import { createEmailService } from './email.mjs';
 import { createUpdateService } from './updates.mjs';
 
 const port = Number(process.env.SIGNAL_PORT ?? 1421);
@@ -12,6 +13,7 @@ const db = openDatabase();
 const funding = createFundingService(db);
 const companies = createCompaniesService(db);
 const crm = createCrmService(db);
+const email = createEmailService(db);
 const updates = createUpdateService({
   managed: process.env.SIGNAL_MANAGED_LAUNCHER === '1',
   requestRestart: () => {
@@ -19,7 +21,7 @@ const updates = createUpdateService({
   },
 });
 const applicationVersion = await currentVersion(projectRoot);
-const server = createApp(db, { funding, companies, crm, updates, applicationVersion });
+const server = createApp(db, { funding, companies, crm, email, updates, applicationVersion });
 server.on('error', error => {
   console.error(error.message);
   db.close();

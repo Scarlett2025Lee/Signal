@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { openDatabase } from './database.mjs';
+import { openDatabase, SCHEMA_VERSION } from './database.mjs';
 import { completedResearchFixture } from './research.fixture.mjs';
 import { createFundingService } from './funding.mjs';
 import { SOURCES, reportingWindow, parseFeed, classifyArticle, fetchFeedPage } from './funding-sources.mjs';
@@ -155,7 +155,7 @@ test('version 1 user database upgrades without losing existing companies', () =>
     old.close();
     const db = openDatabase(path);
     assert.equal(db.prepare('SELECT name FROM companies').get().name, 'Keep me');
-    assert.equal(db.prepare('PRAGMA user_version').get().user_version, 4);
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, SCHEMA_VERSION);
     assert.equal(db.prepare('SELECT enabled FROM funding_schedule').get().enabled, 1);
     db.close();
   } finally {

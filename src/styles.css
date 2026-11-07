@@ -1465,3 +1465,14 @@ a {
     flex-direction: column;
   }
 }
+.due-tag.sent {
+  background: #e8f4ef;
+  color: #3f8466;
+}
+.email-editor {
+  border-top: 1px solid #e4eaf2;
+  padding-top: 18px;
+}
+.template-editor .form-grid {
+  margin-top: 8px;
+}

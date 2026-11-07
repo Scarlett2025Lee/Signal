@@ -15,7 +15,15 @@ const contentTypes = {
 
 export function createApp(
   db,
-  { staticRoot = join(projectRoot, 'dist'), funding, companies, crm, updates, applicationVersion = 'unknown' } = {},
+  {
+    staticRoot = join(projectRoot, 'dist'),
+    funding,
+    companies,
+    crm,
+    email,
+    updates,
+    applicationVersion = 'unknown',
+  } = {},
 ) {
   const root = resolve(staticRoot);
   return createServer(async (req, res) => {
@@ -34,10 +42,12 @@ export function createApp(
     };
     try {
       const url = new URL(req.url, 'http://127.0.0.1');
-      const crmHandler = crm?.route(req.method === 'HEAD' ? 'GET' : req.method, url.pathname);
+      const method = req.method === 'HEAD' ? 'GET' : req.method;
+      // CRM and email services expose route tables; both go through the same write checks below.
+      const routeHandler = crm?.route(method, url.pathname) ?? email?.route(method, url.pathname) ?? null;
       if (!['GET', 'HEAD'].includes(req.method)) {
         const knownMutation =
-          Boolean(crmHandler) ||
+          Boolean(routeHandler) ||
           (updates && req.method === 'POST' && url.pathname === '/api/updates/apply') ||
           (funding &&
             ((req.method === 'POST' && url.pathname === '/api/funding/generate') ||
@@ -80,9 +90,9 @@ export function createApp(
           throw new FundingError('Invalid JSON request');
         }
       };
-      if (crmHandler) {
+      if (routeHandler) {
         // Every CRM write (including DELETE) carries a JSON body, so it passes the same checks above.
-        const result = await crmHandler(req.method === 'GET' || req.method === 'HEAD' ? {} : await body());
+        const result = await routeHandler(req.method === 'GET' || req.method === 'HEAD' ? {} : await body());
         const [status, payload] = Array.isArray(result) && typeof result[0] === 'number' ? result : [200, result];
         json(status, payload);
         return;

@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { openDatabase, dashboardStats, dataDirectory, projectRoot } from './database.mjs';
+import { openDatabase, dashboardStats, dataDirectory, projectRoot, SCHEMA_VERSION } from './database.mjs';
 import { createApp } from './app.mjs';
 import { request } from 'node:http';
 import { completedResearchFixture } from './research.fixture.mjs';
@@ -29,7 +29,7 @@ test('migration retains data after restart and counts only due and active record
       { ...dashboardStats(db) },
       { companies: 1, funding_rounds: 0, contacts: 1, active_outreach: 1, due_follow_ups: 1 },
     );
-    assert.equal(db.prepare('PRAGMA user_version').get().user_version, 4);
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, SCHEMA_VERSION);
   } finally {
     db?.close();
     rmSync(directory, { recursive: true, force: true });
@@ -94,7 +94,7 @@ test('future database versions and relative data paths are rejected', () => {
   const filename = join(directory, 'signal.sqlite3');
   try {
     const db = new DatabaseSync(filename);
-    db.exec('PRAGMA user_version=5');
+    db.exec(`PRAGMA user_version=${SCHEMA_VERSION + 1}`);
     db.close();
     assert.throws(() => openDatabase(filename), /newer/);
     assert.equal(dataDirectory(undefined), join(projectRoot, 'data'));
