@@ -36,7 +36,7 @@ export default function UpdateNotice() {
     let sawDowntime = false;
     const timer = setInterval(async () => {
       if (++attempts > 180) {
-        setMessage('更新仍在进行或启动失败，请查看黑色服务窗口中的提示。');
+        setMessage('The update is still running or failed to start. Check the launcher window for details.');
         setRestarting(false);
         setBusy(false);
         return;
@@ -46,7 +46,9 @@ export default function UpdateNotice() {
         if (!stopped && health.version && health.version !== state?.current) {
           window.location.reload();
         } else if (!stopped && sawDowntime && health.version === state?.current) {
-          setMessage('服务已恢复到原版本；若新版启动失败，启动器会自动回滚。请查看启动窗口中的更新结果。');
+          setMessage(
+            'The previous version is running again. If the new version failed to start, the launcher rolled it back; check the launcher window.',
+          );
           setRestarting(false);
           setBusy(false);
           void check();
@@ -67,9 +69,11 @@ export default function UpdateNotice() {
       const result = await api<{ status: string }>('/api/updates/apply', 'POST', {});
       if (result.status === 'restarting') {
         setRestarting(true);
-        setMessage('正在自动更新并重启，程序和数据库会先备份。请保持黑色启动窗口打开，网页稍后自动刷新。');
+        setMessage(
+          'Updating and restarting. The program and database are backed up first. Keep the launcher window open; this page reloads automatically.',
+        );
       } else {
-        setMessage('当前已是最新版本');
+        setMessage('You are on the latest version');
         setBusy(false);
       }
     } catch (e) {
@@ -83,20 +87,20 @@ export default function UpdateNotice() {
       <span>Signal v{state.current}</span>
       {state.available ? (
         <>
-          <span>新版 v{state.latest} 已发布</span>
+          <span>Version v{state.latest} is available</span>
           {state.managed ? (
             <button className="secondary-button" disabled={busy} onClick={() => void apply()}>
               <Download size={14} />
-              {busy ? '正在更新…' : '更新并重启'}
+              {busy ? 'Updating…' : 'Update and restart'}
             </button>
           ) : (
-            <span>重新打开 Start-Signal.cmd 将自动更新</span>
+            <span>Reopen Start-Signal.cmd to update automatically</span>
           )}
         </>
       ) : (
-        <span>{state.error || '启动时自动检查更新'}</span>
+        <span>{state.error || 'Updates are checked at startup'}</span>
       )}
-      <button className="plain-button" disabled={busy} onClick={() => void check()} aria-label="检查更新">
+      <button className="plain-button" disabled={busy} onClick={() => void check()} aria-label="Check for updates">
         <RefreshCw size={13} />
       </button>
       {message && <p>{message}</p>}

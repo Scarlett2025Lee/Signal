@@ -14,7 +14,7 @@ it('shows the installed/new version and requests managed restart without sending
   );
   render(<UpdateNotice />);
   const user = userEvent.setup();
-  await user.click(await screen.findByRole('button', { name: '更新并重启' }));
+  await user.click(await screen.findByRole('button', { name: 'Update and restart' }));
   expect(api).toHaveBeenCalledWith('/api/updates/apply', 'POST', {});
-  expect(await screen.findByText(/正在自动更新并重启/)).toBeVisible();
+  expect(await screen.findByText(/Updating and restarting/)).toBeVisible();
 });

@@ -265,10 +265,10 @@ export function classifyArticle(article, source) {
   if (geography.kind === 'foreign') return null;
   if (/\bseries\s+[c-z]\b/i.test(opening) || /\b(?:debt financing|debt funding|credit facility)\b/i.test(opening))
     return null;
-  const notes = ['后台公开来源研究'];
-  if (!company) notes.push('未可靠提取公司名称');
-  if (!american) notes.push('来源尚未说明公司所属国家');
-  if (!stage) notes.push('融资阶段待核实');
+  const notes = ['Researched from public sources'];
+  if (!company) notes.push('Company name not reliably extracted');
+  if (!american) notes.push('Source does not yet state the company’s country');
+  if (!stage) notes.push('Funding stage to be confirmed');
   const name = company || title;
   return {
     ...article,
@@ -282,6 +282,6 @@ export function classifyArticle(article, source) {
     round_type: stage,
     amount_text:
       text.match(/(?:US\$|USD\s*|\$|€|£|EUR\s*|GBP\s*)\s*[\d,.]+\s*(?:billion|million|[MBK]\b)?/i)?.[0]?.trim() ?? '',
-    extraction_notes: notes.join('；'),
+    extraction_notes: notes.join('; '),
   };
 }

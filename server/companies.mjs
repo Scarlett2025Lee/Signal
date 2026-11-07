@@ -22,7 +22,7 @@ const strings = [
 ];
 function text(value, max = 4000) {
   if (value === undefined || value === null) return '';
-  if (typeof value !== 'string' || value.length > max) throw new FundingError('资料字段格式无效或过长');
+  if (typeof value !== 'string' || value.length > max) throw new FundingError('A profile field is invalid or too long');
   return value.trim();
 }
 function safeURL(value, hosts) {
@@ -39,7 +39,7 @@ function safeURL(value, hosts) {
       throw new Error();
     return url.href;
   } catch {
-    throw new FundingError('请填写有效的 HTTPS 链接；社交资料须使用对应平台链接');
+    throw new FundingError('Enter a valid HTTPS link; social profiles must use that platform’s domain');
   }
 }
 function validDate(value) {
@@ -50,12 +50,12 @@ function validDate(value) {
       !Number.isFinite(Date.parse(date)) ||
       new Date(date).toISOString().slice(0, 10) !== date)
   )
-    throw new FundingError('核查日期格式无效');
+    throw new FundingError('Invalid checked date');
   return date;
 }
 function email(value) {
   const result = text(value, 254);
-  if (result && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result)) throw new FundingError('邮箱格式无效');
+  if (result && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result)) throw new FundingError('Invalid email address');
   return result;
 }
 
@@ -71,7 +71,7 @@ export function createCompaniesService(db) {
   }
   function detail(id) {
     const company = db.prepare('SELECT * FROM companies WHERE id=?').get(id);
-    if (!company) throw new FundingError('未找到该公司', 404);
+    if (!company) throw new FundingError('Company not found', 404);
     return {
       ...company,
       founders: db
@@ -87,14 +87,14 @@ export function createCompaniesService(db) {
   }
   function create(input) {
     const name = text(input.name, 150);
-    if (!name) throw new FundingError('请输入公司名称');
+    if (!name) throw new FundingError('Enter a company name');
     const id = Number(db.prepare("INSERT INTO companies(name,country_code) VALUES(?,'US')").run(name).lastInsertRowid);
     return detail(id);
   }
   function save(id, input) {
     const existing = detail(id);
     const values = Object.fromEntries(strings.map(key => [key, text(input[key])]));
-    if (!values.name || values.name.length > 150) throw new FundingError('请填写公司名称（最多 150 字符）');
+    if (!values.name || values.name.length > 150) throw new FundingError('Enter a company name (up to 150 characters)');
     for (const key of ['website', 'info_source_url', 'hiring_source_url']) values[key] = safeURL(values[key]);
     values.x_url = safeURL(values.x_url, ['x.com', 'twitter.com']);
     values.linkedin_url = safeURL(values.linkedin_url, ['linkedin.com']);
@@ -102,26 +102,26 @@ export function createCompaniesService(db) {
     values.info_checked_on = validDate(values.info_checked_on);
     values.hiring_checked_on = validDate(values.hiring_checked_on);
     if (!['unknown', 'roles_found', 'no_relevant_roles'].includes(values.hiring_status))
-      throw new FundingError('请选择招聘核查状态');
+      throw new FundingError('Choose a hiring status');
     if (values.hiring_status !== 'unknown' && (!values.hiring_source_url || !values.hiring_checked_on))
-      throw new FundingError('判断招聘状态需要官网/官网链接的招聘页以及核查日期');
+      throw new FundingError('A hiring status needs the official careers page and a checked date');
     if (
       !Array.isArray(input.founders) ||
       input.founders.length > 20 ||
       !Array.isArray(input.jobs) ||
       input.jobs.length > 50
     )
-      throw new FundingError('创始人或招聘岗位列表无效');
+      throw new FundingError('Invalid founder or job list');
     const founders = input.founders.map(row => {
       const name = text(row.name, 150);
       const profile = safeURL(row.profile_url, ['linkedin.com']);
       const source = safeURL(row.source_url);
       const mail = email(row.email);
       const phone = text(row.phone, 100);
-      if (!name) throw new FundingError('创始人姓名不能为空');
-      if ((mail || phone) && !source) throw new FundingError('创始人公开邮箱/电话需要来源链接');
+      if (!name) throw new FundingError('Founder name is required');
+      if ((mail || phone) && !source) throw new FundingError('A founder’s public email or phone needs a source link');
       if (row.id && !existing.founders.some(founder => founder.id === row.id))
-        throw new FundingError('创始人记录不属于该公司');
+        throw new FundingError('That founder record belongs to another company');
       return {
         ...row,
         name,
@@ -138,17 +138,19 @@ export function createCompaniesService(db) {
       const evidence = text(row.evidence, 2000);
       const checked = validDate(row.checked_on);
       if (!title || !['PM', 'GTM', 'Data'].includes(row.track) || !url || !evidence || !checked)
-        throw new FundingError('岗位需要名称、PM/GTM/Data 方向、官网岗位链接、原文依据和核查日期');
+        throw new FundingError(
+          'Each role needs a title, a PM/GTM/Data track, an official job link, quoted evidence and a checked date',
+        );
       return { title, url, evidence, checked_on: checked, track: row.track };
     });
     if (values.hiring_status === 'roles_found' && jobs.length === 0)
-      throw new FundingError('发现相关招聘时请至少记录一个明确岗位');
+      throw new FundingError('Record at least one specific role when relevant roles were found');
     if (values.hiring_status !== 'roles_found' && jobs.length)
-      throw new FundingError('有岗位时请将招聘状态设为“有明确相关岗位”');
+      throw new FundingError('Set the hiring status to “roles found” when roles are listed');
     const hasPublicDetails =
       values.public_email || values.public_phone || values.recruiting_email || values.recruiting_phone;
     if (hasPublicDetails && (!values.info_source_url || !values.info_checked_on))
-      throw new FundingError('公司/招聘联系方式需要公开来源及核查日期');
+      throw new FundingError('Company or recruiting contact details need a public source and a checked date');
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare(`UPDATE companies SET ${strings.map(key => key + '=?').join(',')} WHERE id=?`).run(
@@ -191,7 +193,7 @@ export function createCompaniesService(db) {
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
-      if (error.code?.includes('SQLITE')) throw new FundingError('联系方式或岗位重复，请检查输入');
+      if (error.code?.includes('SQLITE')) throw new FundingError('Duplicate contact or role; check the input');
       throw error;
     }
     return detail(id);

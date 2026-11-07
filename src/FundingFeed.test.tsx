@@ -97,16 +97,16 @@ it('shows one final company with funding, headquarters, socials, founders, conta
     </MemoryRouter>,
   );
   expect(await screen.findByText('FixtureAI')).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'company' })).toBeVisible();
-  expect(screen.getByRole('link', { name: '公司 X' })).toHaveAttribute('href', 'https://x.com/fixture');
-  expect(screen.getByRole('link', { name: '创始人 LinkedIn' })).toHaveAttribute(
+  expect(screen.getByRole('heading', { name: 'Companies' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Company X' })).toHaveAttribute('href', 'https://x.com/fixture');
+  expect(screen.getByRole('link', { name: 'Founder LinkedIn' })).toHaveAttribute(
     'href',
     'https://linkedin.com/in/fixture',
   );
   expect(screen.getByText('jobs@example.com')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Product Manager' })).toBeVisible();
-  expect(screen.queryByRole('button', { name: /核对|保存公司/ })).not.toBeInTheDocument();
-  expect(screen.queryByText('总部待核实')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Confirm|Save company/ })).not.toBeInTheDocument();
+  expect(screen.queryByText('Headquarters to be confirmed')).not.toBeInTheDocument();
 });
 it('does not expose incomplete candidates and starts the complete discovery workflow', async () => {
   vi.mocked(api).mockImplementation(async (_path, method) =>
@@ -123,8 +123,8 @@ it('does not expose incomplete candidates and starts the complete discovery work
     </MemoryRouter>,
   );
   const user = userEvent.setup();
-  expect(await screen.findByText('本次尚无符合全部条件的公司')).toBeVisible();
+  expect(await screen.findByText('No company meets every condition yet')).toBeVisible();
   expect(screen.queryByText('FixtureAI')).not.toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: '生成本周公司名单' }));
+  await user.click(screen.getByRole('button', { name: 'Generate this week’s list' }));
   expect(api).toHaveBeenCalledWith('/api/funding/generate', 'POST', {});
 });

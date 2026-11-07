@@ -246,7 +246,7 @@ test('update status caches manifest and restart is requested only for an availab
     managed: false,
     fetcher: async () => new Response(JSON.stringify(pkg.manifest)),
   });
-  await assert.rejects(unmanaged.apply(), /启动器/);
+  await assert.rejects(unmanaged.apply(), /launcher/);
 });
 test('update HTTP endpoint reports the version and accepts only same-origin JSON restart requests', async t => {
   const root = await installation(t);

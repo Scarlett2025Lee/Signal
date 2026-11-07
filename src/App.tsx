@@ -37,7 +37,7 @@ const sections: { path: string; label: string; icon: LucideIcon; group: string; 
     },
     {
       path: '/companies',
-      label: 'company',
+      label: 'Companies',
       icon: Building2,
       group: 'DISCOVER',
       description: 'Build a focused list of companies worth reaching out to.',
@@ -205,7 +205,7 @@ function Dashboard() {
         </div>
         <span className="phase-badge">
           <span className="status-dot" />
-          company · v0.3.5
+          Companies · v0.3.5
         </span>
       </div>
       <div className={`runtime-notice ${error ? 'notice-error' : ''}`} role="status">
@@ -259,7 +259,7 @@ function Dashboard() {
             <br className="wide-only" /> Find your angle. Start a conversation.
           </p>
           <NavLink to="/funding" className="primary-button">
-            发现符合条件的公司 <ArrowRight size={16} />
+            Find eligible companies <ArrowRight size={16} />
           </NavLink>
           <div className="target-tags">
             <span>AI & fintech</span>
@@ -293,7 +293,7 @@ function Dashboard() {
             <span className="step-circle">3</span>
             <div>
               <strong>Build your target list</strong>
-              <small>融资与公司资料已完成后台筛选</small>
+              <small>Funding research and company profiles are screened in the background</small>
             </div>
           </div>
         </section>

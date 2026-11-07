@@ -95,7 +95,7 @@ export function locationFromText(text, companyName, { firstParty = false } = {})
     }
   const kinds = new Set(evidence.map(e => e.kind));
   if (kinds.has('conflict') || (kinds.has('us') && kinds.has('foreign')))
-    return { kind: 'conflict', location: '存在多个总部/地区依据', evidence };
+    return { kind: 'conflict', location: 'Conflicting headquarters or region evidence', evidence };
   if (!evidence.length) {
     const patterns = [
       new RegExp(
@@ -176,7 +176,11 @@ export function parsePage(html, url, companyName, { firstParty = false } = {}) {
   const kinds = new Set(evidence.map(e => e.kind));
   const location =
     kinds.has('conflict') || (kinds.has('us') && kinds.has('foreign'))
-      ? { kind: 'conflict', location: '公开资料存在多个地点，需区分总部和办公室', evidence }
+      ? {
+          kind: 'conflict',
+          location: 'Public pages list several locations; headquarters and offices could not be told apart',
+          evidence,
+        }
       : explicit.kind !== 'unknown'
         ? explicit
         : structured.find(e => e.kind !== 'unknown')
@@ -253,10 +257,10 @@ export async function fetchPublicPage(raw, { signal, resolve = dnsLookup, reques
       !url.hostname.includes('.') ||
       /\.(local|localhost|internal|lan|home|test|invalid)$/i.test(url.hostname)
     )
-      throw Error('非公开 HTTPS 地址');
+      throw Error('Not a public HTTPS address');
     const addresses = await resolve(url.hostname, { all: true });
     if (!addresses.length || addresses.some(a => !publicAddress(a.address)))
-      throw Error('地址指向本机或私有网络，未访问');
+      throw Error('Address points to this computer or a private network; not accessed');
     const target = url.hostname;
     const dispatcher = new EnvHttpProxyAgent({
       connect: {
@@ -288,18 +292,18 @@ export async function fetchPublicPage(raw, { signal, resolve = dnsLookup, reques
         url = new URL(response.headers.get('location'), url);
         continue;
       }
-      if (!response.ok) throw Error(`页面 HTTP ${response.status}`);
+      if (!response.ok) throw Error(`Page HTTP ${response.status}`);
       if (
         !(format === 'json' ? /application\/json/i : /text\/html|application\/xhtml/i).test(
           response.headers.get('content-type') || '',
         )
       )
-        throw Error('页面内容类型不匹配');
+        throw Error('Unexpected page content type');
       let size = 0;
       const chunks = [];
       for await (const chunk of response.body) {
         size += chunk.length;
-        if (size > 2_000_000) throw Error('页面超过 2MB');
+        if (size > 2_000_000) throw Error('Page is larger than 2 MB');
         chunks.push(chunk);
       }
       return { html: Buffer.concat(chunks).toString('utf8'), url: url.href };
@@ -307,7 +311,7 @@ export async function fetchPublicPage(raw, { signal, resolve = dnsLookup, reques
       await dispatcher.destroy();
     }
   }
-  throw Error('页面重定向次数过多');
+  throw Error('Too many page redirects');
 }
 
 export async function researchArticle(article, source, { signal, fetchPage = fetchPublicPage } = {}) {
@@ -324,7 +328,7 @@ export async function researchArticle(article, source, { signal, fetchPage = fet
     evidence.push(...parsed.evidence);
     website = parsed.website;
   } catch (error) {
-    errors.push('新闻原文：' + error.message);
+    errors.push('Funding article: ' + error.message);
   }
   if (location.kind === 'unknown' && website) {
     try {
@@ -343,7 +347,7 @@ export async function researchArticle(article, source, { signal, fetchPage = fet
           }
         }
     } catch (error) {
-      errors.push('官网：' + error.message);
+      errors.push('Company website: ' + error.message);
     }
   }
   if (!evidence.length) for (const item of location.evidence ?? []) evidence.push({ ...item, url: article.source_url });
@@ -354,7 +358,7 @@ export async function researchArticle(article, source, { signal, fetchPage = fet
     country_code: location.kind === 'us' || location.country_code === 'US' ? 'US' : null,
     location_kind: location.kind,
     hq_evidence: evidence,
-    research_error: errors.join('；'),
+    research_error: errors.join('; '),
     company_website: website,
   };
 }

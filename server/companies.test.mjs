@@ -66,8 +66,8 @@ test('rejects unsafe socials, guessed jobs without evidence, and unsupported hir
     const c = service.create({ name: 'Fixture' });
     assert.throws(() => service.save(c.id, { ...c, x_url: 'javascript:alert(1)' }), /HTTPS/);
     assert.throws(() => service.save(c.id, { ...c, linkedin_url: 'https://unrelated.example/person' }), /HTTPS/);
-    assert.throws(() => service.save(c.id, { ...c, hiring_status: 'no_relevant_roles' }), /核查日期/);
-    assert.throws(() => service.save(c.id, { ...c, public_email: 'hello@example.com' }), /来源/);
+    assert.throws(() => service.save(c.id, { ...c, hiring_status: 'no_relevant_roles' }), /checked date/);
+    assert.throws(() => service.save(c.id, { ...c, public_email: 'hello@example.com' }), /source/);
     assert.throws(
       () =>
         service.save(c.id, {

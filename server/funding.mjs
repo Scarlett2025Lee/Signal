@@ -26,7 +26,12 @@ export class FundingError extends Error {
 export async function researchCandidate(article, source, { signal, fetchPage, clock = () => new Date() } = {}) {
   let located = await researchArticle(article, source, { signal, fetchPage });
   const classified = classifyArticle({ ...located, summary: located.summary + '\n' + article.summary }, source);
-  if (!classified) return { ...located, eligibility: 'excluded', research_error: '原文不符合融资或地区条件' };
+  if (!classified)
+    return {
+      ...located,
+      eligibility: 'excluded',
+      research_error: 'Article does not meet the funding or location conditions',
+    };
   located = {
     ...classified,
     ...located,
@@ -43,15 +48,19 @@ export async function researchCandidate(article, source, { signal, fetchPage, cl
       hq_evidence: classified.hq_evidence,
     };
   if (located.location_kind === 'foreign')
-    return { ...located, eligibility: 'excluded', research_error: '来源明确为非美国' };
+    return { ...located, eligibility: 'excluded', research_error: 'Source states the company is not US-based' };
   if (located.country_code !== 'US')
     return {
       ...located,
       eligibility: 'research',
-      research_error: ['来源未提供可识别的美国公司依据', located.research_error].filter(Boolean).join('；'),
+      research_error: ['No recognizable evidence of a US company', located.research_error].filter(Boolean).join('; '),
     };
   if (!located.round_type)
-    return { ...located, eligibility: 'research', research_error: '融资阶段未能提取，未加入目标阶段名单' };
+    return {
+      ...located,
+      eligibility: 'research',
+      research_error: 'Funding stage could not be extracted, so it is not in the target-stage list',
+    };
   const company = await researchCompany(located, { signal, clock, fetchPage });
   return {
     ...located,
@@ -133,7 +142,7 @@ export function createFundingService(
       rows
         .filter(a => a.eligibility !== 'included' && a.researched_at === report?.generated_at)
         .reduce((map, a) => {
-          const key = a.research_error || '融资/地区/阶段不符合或无法取得依据';
+          const key = a.research_error || 'Funding, location or stage did not match, or evidence was unavailable';
           map[key] = (map[key] || 0) + 1;
           return map;
         }, {}),
@@ -197,9 +206,9 @@ export function createFundingService(
         } catch (exception) {
           error =
             exception.name === 'TimeoutError'
-              ? '请求超时'
+              ? 'Request timed out'
               : exception.message === 'fetch failed'
-                ? '无法连接来源，请检查网络、代理或源站访问限制'
+                ? 'Could not reach the source; check the network, proxy or the publisher’s access rules'
                 : exception.message.slice(0, 200);
         }
         const candidates = [...found.values()].map(article => classifyArticle(article, source)).filter(Boolean);
@@ -224,13 +233,17 @@ export function createFundingService(
             researched.push(
               classified
                 ? { ...classified, ...result }
-                : { ...result, eligibility: 'excluded', research_error: '原文不符合融资或地区条件' },
+                : {
+                    ...result,
+                    eligibility: 'excluded',
+                    research_error: 'Article does not meet the funding or location conditions',
+                  },
             );
           } catch (error) {
             researched.push({
               ...job.article,
               eligibility: 'research',
-              research_error: '资料查询失败：' + error.message,
+              research_error: 'Research failed: ' + error.message,
             });
           } finally {
             progress.completed++;
@@ -354,8 +367,8 @@ export function createFundingService(
   }
 
   function generate() {
-    if (stopped) throw new FundingError('网站正在关闭', 503);
-    if (running) throw new FundingError('周报正在生成，请等待当前任务完成', 409);
+    if (stopped) throw new FundingError('The website is shutting down', 503);
+    if (running) throw new FundingError('A report is already being generated; wait for it to finish', 409);
     running = true;
     controller = new AbortController();
     active = generateReport().finally(() => {
@@ -366,8 +379,9 @@ export function createFundingService(
 
   function review(id, input) {
     const article = db.prepare('SELECT * FROM funding_articles WHERE id=?').get(id);
-    if (!article) throw new FundingError('未找到这条融资消息', 404);
-    if (article.review_status === 'approved') throw new FundingError('此记录已确认并保存，不能重复修改', 409);
+    if (!article) throw new FundingError('Funding article not found', 404);
+    if (article.review_status === 'approved')
+      throw new FundingError('This record is already confirmed and saved; it cannot be changed again', 409);
     if (input.action === 'reject') {
       db.prepare("UPDATE funding_articles SET review_status='rejected',reviewed_at=? WHERE id=?").run(
         clock().toISOString(),
@@ -385,19 +399,21 @@ export function createFundingService(
       !stages.includes(input.round_type) ||
       !sectors.includes(input.sector)
     )
-      throw new FundingError('请确认公司名称、美国总部、AI/Fintech 行业和 Pre-seed 至 Series B 阶段');
+      throw new FundingError(
+        'Confirm the company name, US headquarters, AI/Fintech sector and a Pre-seed to Series B stage',
+      );
     if (
       typeof date !== 'string' ||
       !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
       !Number.isFinite(Date.parse(date)) ||
       new Date(date).toISOString().slice(0, 10) !== date
     )
-      throw new FundingError('请填写原文中的有效融资公告日期');
+      throw new FundingError('Enter a valid funding announcement date from the article');
     const related = db
       .prepare('SELECT r.* FROM funding_reports r JOIN report_articles a ON a.report_id=r.id WHERE a.article_id=?')
       .all(id);
     if (!related.some(report => date >= report.window_start && date <= report.window_end))
-      throw new FundingError('融资公告日期不在任何关联周报的 7 天范围内');
+      throw new FundingError('The announcement date is outside the 7-day window of every linked report');
     const key = name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -411,7 +427,8 @@ export function createFundingService(
           id: Number(
             db
               .prepare('INSERT INTO companies(name,sector,country_code,notes) VALUES(?,?,?,?)')
-              .run(name, input.sector, input.country_code || null, `融资来源：${article.source_url}`).lastInsertRowid,
+              .run(name, input.sector, input.country_code || null, `Funding source: ${article.source_url}`)
+              .lastInsertRowid,
           ),
         };
       let round = db
@@ -430,7 +447,7 @@ export function createFundingService(
                 date,
                 article.source_url,
                 clock().toISOString(),
-                `用户根据原文核对；原文金额：${article.amount_text || '未提取'}；行业：${input.sector}`,
+                `Checked by the user against the article; amount as stated: ${article.amount_text || 'not extracted'}; sector: ${input.sector}`,
               ).lastInsertRowid,
           ),
         };
@@ -451,7 +468,7 @@ export function createFundingService(
       if (input.automatic && input.profile) {
         saveProfile(company.id, input.profile);
         db.prepare('UPDATE funding_rounds SET notes=? WHERE id=?').run(
-          `程序完成公开来源对照；融资消息发布日期：${date}（并非确认资金交割日期）；原文金额：${article.amount_text || '未披露'}；总部依据见原文。`,
+          `Matched automatically against public sources; funding news published ${date} (not a confirmed closing date); amount as stated: ${article.amount_text || 'not disclosed'}; headquarters evidence is in the article.`,
           round.id,
         );
       }
@@ -522,18 +539,18 @@ export function createFundingService(
 
   function markdown(reportId) {
     const state = snapshot(reportId);
-    if (!state.report) throw new FundingError('还没有可导出的周报', 404);
+    if (!state.report) throw new FundingError('There is no report to export yet', 404);
     const clean = value => String(value ?? '').replace(/[|\r\n]/g, ' ');
     const lines = [
-      `# 美国 AI / Fintech 公司周报`,
+      `# US AI / Fintech companies — weekly report`,
       '',
-      `日期：${state.report.window_start} 至 ${state.report.window_end}（美国东部时间，含今天）`,
+      `Dates: ${state.report.window_start} to ${state.report.window_end} (US Eastern time, including today)`,
       '',
-      '范围：美国；Pre-seed 至 Series B。后台完成融资原文、美国总部与公司公开页面查询后展示；日期为融资消息发布日期，不代表资金交割日。金额按原文保留。',
+      'Scope: United States; Pre-seed to Series B. Companies appear after the funding article, US evidence and public company pages are checked. Dates are when the funding news was published, not when funds closed. Amounts are as stated in the source.',
       '',
-      `抓取状态：${state.report.status}。公开网页覆盖有限，不代表市场全量。`,
+      `Retrieval status: ${state.report.status}. Public-web coverage is limited and does not represent the whole market.`,
       '',
-      '| 公司 | 行业 | 轮次 | 金额（原文） | 消息日期 | 来源 |',
+      '| Company | Sector | Round | Amount (as stated) | News date | Source |',
       '|---|---|---|---|---|---|',
     ];
     const confirmed = state.articles.filter(
@@ -548,41 +565,41 @@ export function createFundingService(
       if (seen.has(key)) continue;
       seen.add(key);
       lines.push(
-        `| ${clean(a.company_name)} | ${clean(a.sector)} | ${a.round_type} | ${clean(a.amount_text || '未披露/未提取')} | ${a.announced_on} | ${a.source_url} |`,
+        `| ${clean(a.company_name)} | ${clean(a.sector)} | ${a.round_type} | ${clean(a.amount_text || 'Not disclosed / not extracted')} | ${a.announced_on} | ${a.source_url} |`,
       );
     }
-    if (!seen.size) lines.push('', '本次尚无满足全部条件且完成公开页面查询的公司。');
+    if (!seen.size) lines.push('', 'No company met every condition with completed public-page research this time.');
     for (const a of confirmed) {
       const c = a.company;
       lines.push(
         '',
         `## ${clean(a.company_name)}`,
         '',
-        `业务：${clean(c.product_summary)}`,
-        `总部：${clean(c.headquarters)}`,
-        `办公室：${clean(c.offices)}`,
-        `官网：${clean(c.website)}`,
-        `X：${clean(c.x_url) || '已查页面未找到'}`,
-        `LinkedIn：${clean(c.linkedin_url) || '已查页面未找到'}`,
-        `公开邮箱/电话：${clean(c.public_email)} / ${clean(c.public_phone)}`,
-        `招聘邮箱/电话：${clean(c.recruiting_email)} / ${clean(c.recruiting_phone)}`,
+        `Business: ${clean(c.product_summary)}`,
+        `Headquarters: ${clean(c.headquarters)}`,
+        `Offices: ${clean(c.offices)}`,
+        `Website: ${clean(c.website)}`,
+        `X: ${clean(c.x_url) || 'not found on checked pages'}`,
+        `LinkedIn: ${clean(c.linkedin_url) || 'not found on checked pages'}`,
+        `Public email / phone: ${clean(c.public_email)} / ${clean(c.public_phone)}`,
+        `Recruiting email / phone: ${clean(c.recruiting_email)} / ${clean(c.recruiting_phone)}`,
       );
       for (const f of c.founders)
         lines.push(
-          `创始人：${clean(f.name)}；LinkedIn：${clean(f.profile_url)}；邮箱/电话：${clean(f.email)} / ${clean(f.phone)}`,
+          `Founder: ${clean(f.name)}; LinkedIn: ${clean(f.profile_url)}; email / phone: ${clean(f.email)} / ${clean(f.phone)}`,
         );
-      for (const j of c.jobs) lines.push(`岗位：${j.track} · ${clean(j.title)} · ${j.url}`);
+      for (const j of c.jobs) lines.push(`Role: ${j.track} · ${clean(j.title)} · ${j.url}`);
     }
-    lines.push('', '## 来源检查', '');
+    lines.push('', '## Source checks', '');
     for (const source of state.report.sources)
       lines.push(
-        `- ${source.name}: ${source.error || (source.covered ? '已翻页至时间窗口之前' : '未能确认完整 7 天覆盖')}；读取 ${source.pages} 页。`,
+        `- ${source.name}: ${source.error || (source.covered ? 'paged back past the start of the window' : 'full 7-day coverage not confirmed')}; ${source.pages} page(s) read.`,
       );
     return lines.join('\n');
   }
 
   function setSchedule(enabled) {
-    if (typeof enabled !== 'boolean') throw new FundingError('enabled 必须是 true 或 false');
+    if (typeof enabled !== 'boolean') throw new FundingError('enabled must be true or false');
     db.prepare('UPDATE funding_schedule SET enabled=? WHERE id=1').run(enabled ? 1 : 0);
   }
   function diagnosticsExport(reportId) {

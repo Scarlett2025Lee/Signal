@@ -6,7 +6,7 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
     signal: AbortSignal.timeout(15000),
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || '请求失败，请重试');
+  if (!response.ok) throw new Error(data.error || 'Request failed. Please try again.');
   return data as T;
 }
 

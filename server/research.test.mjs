@@ -171,14 +171,14 @@ test('public research rejects local addresses and redirects to private networks'
         throw Error('Must not request');
       },
     }),
-    /私有网络/,
+    /private network/,
   );
   await assert.rejects(
     fetchPublicPage('https://public.example.com', {
       resolve: async () => [{ address: '93.184.216.34', family: 4 }],
       request: async () => new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/private' } }),
     }),
-    /非公开/,
+    /Not a public/,
   );
 });
 test('official role extraction excludes engineering and recognizes the three requested tracks', () => {
@@ -206,7 +206,7 @@ test('optional website and careers failures do not exclude a company meeting the
   assert.equal(blocked.eligibility, 'included');
   assert.match(blocked.hq_location, /Pittsburgh/);
   assert.equal(blocked.company_profile.founders.length, 0);
-  assert.match(blocked.research_error, /官网访问受限/);
+  assert.match(blocked.research_error, /Company website unavailable/);
   const partial = await researchCandidate(input, SOURCES[0], {
     fetchPage: async url => {
       if (url.includes('careers')) throw Error('timeout');

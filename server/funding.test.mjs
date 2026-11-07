@@ -100,7 +100,7 @@ test('generation filters exact window, deduplicates sources, automatically compl
   });
   try {
     const active = service.generate();
-    assert.throws(() => service.generate(), /正在生成/);
+    assert.throws(() => service.generate(), /already being generated/);
     await active;
     let state = service.snapshot();
     assert.equal(state.articles.length, 1);

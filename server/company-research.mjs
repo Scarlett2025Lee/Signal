@@ -217,7 +217,10 @@ export async function researchCompany(article, { signal, fetchPage = fetchPublic
     },
     pages,
   });
-  if (!website) return fallback('融资来源未提供可识别的官网链接；扩展资料未取得');
+  if (!website)
+    return fallback(
+      'The funding article did not link a recognizable company website; profile details were not collected',
+    );
   try {
     const home = await fetchPage(website, { signal });
     pages.push(home.url);
@@ -236,7 +239,7 @@ export async function researchCompany(article, { signal, fetchPage = fetchPublic
       pages.push(page.url);
       const data = JSON.parse(page.html);
       const all = endpoint.kind === 'lever' ? data : data.jobs;
-      if (!Array.isArray(all)) throw Error('招聘数据结构不正确');
+      if (!Array.isArray(all)) throw Error('Unexpected job board data format');
       return all.flatMap(item => {
         const title = item.title || item.text;
         const track = jobTrack(title || '');
@@ -275,7 +278,7 @@ export async function researchCompany(article, { signal, fetchPage = fetchPublic
             results.push(profileFromPage(boardPage.html, boardPage.url, article.company_name));
           }
       } catch (error) {
-        errors.push(`${entry.kind} 页面：${error.message}`);
+        errors.push(`${entry.kind} page: ${error.message}`);
       }
     }
     const first = key => results.find(row => row[key])?.[key] || '';
@@ -294,7 +297,7 @@ export async function researchCompany(article, { signal, fetchPage = fetchPublic
     const description = load(home.html)('meta[name="description"]').attr('content') || parsed.text.slice(0, 500);
     return {
       complete: true,
-      error: errors.join('；'),
+      error: errors.join('; '),
       profile: {
         website: home.url,
         headquarters: article.hq_location,
@@ -318,6 +321,6 @@ export async function researchCompany(article, { signal, fetchPage = fetchPublic
       pages,
     };
   } catch (error) {
-    return fallback('官网访问受限：' + error.message);
+    return fallback('Company website unavailable: ' + error.message);
   }
 }

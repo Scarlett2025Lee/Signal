@@ -24,7 +24,9 @@ export function createUpdateService({ root = projectRoot, fetcher = fetch, reque
           available: !failed && versionCompare(latest.version, current) > 0,
           managed,
           checked_at: new Date().toISOString(),
-          error: failed ? '上一轮更新启动失败，已恢复旧版；等待修复版本后会再自动更新' : null,
+          error: failed
+            ? 'The last update failed to start and the previous version was restored; a fixed release will be installed automatically'
+            : null,
         };
       } catch {
         cached = {
@@ -33,7 +35,7 @@ export function createUpdateService({ root = projectRoot, fetcher = fetch, reque
           available: false,
           managed,
           checked_at: new Date().toISOString(),
-          error: '暂时无法连接 GitHub，已安装版本可继续使用',
+          error: 'Cannot reach GitHub right now; the installed version keeps working',
         };
       }
       checked = Date.now();
@@ -46,7 +48,8 @@ export function createUpdateService({ root = projectRoot, fetcher = fetch, reque
   async function apply() {
     const state = await status();
     if (state.error) throw Error(state.error);
-    if (!managed || !requestRestart) throw Error('请关闭服务后重新双击 Start-Signal.cmd，启动器会自动更新');
+    if (!managed || !requestRestart)
+      throw Error('Stop the server and run Start-Signal.cmd again; the launcher updates automatically');
     if (!state.available) return { status: 'current' };
     requestRestart();
     return { status: 'restarting' };

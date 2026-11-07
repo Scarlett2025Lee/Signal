@@ -66,7 +66,7 @@ export function createApp(
         let size = 0;
         for await (const chunk of req) {
           size += chunk.length;
-          if (size > 65536) throw new FundingError('请求内容过大', 413);
+          if (size > 65536) throw new FundingError('Request body is too large', 413);
           chunks.push(chunk);
         }
         const text = Buffer.concat(chunks).toString('utf8');
@@ -75,7 +75,7 @@ export function createApp(
           if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
           return value;
         } catch {
-          throw new FundingError('无效的 JSON 请求');
+          throw new FundingError('Invalid JSON request');
         }
       };
       if (updates && url.pathname === '/api/updates' && req.method === 'GET') {
