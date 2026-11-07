@@ -1,10 +1,12 @@
 # Signal · Local job-search website
 
-React + TypeScript + Vite, with a small Node.js 24 HTTP server and embedded SQLite. The website runs on your own computer, stores data in the project folder, and needs no Tauri, Rust, Python, database server, or cloud account. Existing funding digests in `../weeks/` are unchanged.
+React + TypeScript + Vite, with a small Node.js 24 HTTP server and embedded SQLite. The website runs on your own computer, stores data in the project folder, and needs no Tauri, Rust, Python, database server, or cloud account.
+
+`D:\Signal` is the project root and a local Git repository (branch `main`). Commands below run from this folder.
 
 For Windows on D:, see [中文启动说明](START_HERE.zh-CN.md).
 
-## Current capabilities (v0.3.1)
+## Current capabilities (v0.3.5)
 
 Company Discovery is one combined page for final eligible companies. Funding Feed bookmarks redirect there. No candidate-review/save workflow or separate company-entry page is required.
 
@@ -18,16 +20,21 @@ Existing incorrect unconfirmed articles are retained privately but removed from 
 
 Public RSS feeds have limited history and can fail, block clients or change their URL. Coverage limits and failures are shown per source; zero retrieved records do not establish no funding occurred. Heuristic extraction produces candidates requiring review, not verified facts. Historical Markdown digests are not silently imported.
 
-Live publisher access in the current cloud instance failed at the outbound proxy (CONNECT 403); successful real feed retrieval is **not yet validated**. Parsing and complete report/review/company/HTTP workflows passed with clearly fictional fixtures, and Chromium verified the actual blocked-source state. Required host additions were saved in the environment draft; to finish cloud live validation review/save those settings and publish the environment. The draft does not change networking on Windows; test Generate locally after upgrading. Destinations: www.finsmes.com, fintech.global, tech.eu, plus their configured www/non-www redirects. No API key is needed. Production/development launchers respect inherited HTTP proxy settings via Node's --use-env-proxy.
+Observed on Windows (reports of 2026-10-31 and 2026-11-01): FinTech Global and Tech.eu feeds were retrieved, but FinSMEs returned **HTTP 403** every time, so both reports are `partial`. Across both runs 18 articles were stored and only 1 company passed every condition; most others lacked recognizable US-company evidence. Tech.eu is Europe-focused, so its US yield is low. Improving source coverage is open work.
+
+Destinations: www.finsmes.com, fintech.global, tech.eu, plus their configured www/non-www redirects. No API key is needed. Production/development launchers respect inherited HTTP proxy settings via Node's --use-env-proxy.
 
 ## Development
 
-Use Node.js 24.19.x or later within version 24 (its built-in `node:sqlite` supplies SQLite) and npm. From this `web` directory:
+Use Node.js 24.19.x or later within version 24 (its built-in `node:sqlite` supplies SQLite) and npm. A globally installed Node may be older; the launcher's portable copy in `.tools/` is the right version. In Git Bash, from `D:\Signal`:
 
 ```sh
-npm ci
+export PATH="/d/Signal/.tools/node-v24.19.0-win-x64:$PATH"
+npm ci        # only needed if node_modules is missing or package-lock.json changed
 npm run dev
 ```
+
+Stop any `Start-Signal.cmd` server first: both it and the development API use port 1421.
 
 This starts the API on loopback port 1421 and Vite on loopback port 1420. Open `http://127.0.0.1:1420` **on the same computer**. The Vite proxy forwards `/api` to the local backend. Ctrl+C stops both processes. `npm run dev:ui` alone starts only the frontend and cannot supply database counts.
 
@@ -42,7 +49,7 @@ Open `http://127.0.0.1:1421` on the computer running the server. This is a local
 
 The Windows launcher `Start-Signal.cmd` calls `Start-Signal.ps1`. It requires the project to be on D:, downloads portable Node 24.19.0 from nodejs.org on first use, checks the official SHA-256 manifest, installs locked dependencies, builds the website, and starts it. Tools, npm cache, process temporary files, and database all use directories under the project on D:. It needs Internet access for the first setup, but does not install Node globally. The launcher prints five progress stages, keeps the CMD window open on exit, and saves diagnostics under `.cache/logs/`. Once the health endpoint confirms SQLite is connected, it opens Chrome with a separate profile/cache under the project on D:. `Open-Signal.cmd` remains available to reopen the browser. The launcher owns its server process and stops it when interrupted.
 
-The Windows launchers have not been executed in this Linux environment. The Node/HTTP/SQLite workflow has been tested here. Windows itself, PowerShell, antivirus, and an already installed browser may still use system files on C:; the application cannot guarantee zero system-disk writes.
+The launcher has run successfully on Windows 11 (see `.cache/logs/startup.log`). Because this folder is a Git checkout, its automatic update step stops before writing any file and the launcher continues with the local code (see Automatic updates). Windows itself, PowerShell, antivirus, and an already installed browser may still use system files on C:; the application cannot guarantee zero system-disk writes.
 
 ## Storage
 
@@ -71,23 +78,33 @@ npm run test:server
 npm run test:schema
 ```
 
-UI tests cover funding review/generation/errors, company source links/editing, navigation, routes, offline state, counts and retry. Server tests cover legacy migration, date/exclusion/deduplication logic, review/evidence validation, retained contact history, complete HTTP mutations/exports, persistence, routing and access boundaries. Schema tests use Python 3's standard library as an optional developer check; Python is not needed to run the website. On Windows, `py -3 scripts/check_schema.py` is an alternative.
+UI tests cover funding review/generation/errors, company source links/editing, navigation, routes, offline state, counts and retry. Server tests cover legacy migration, date/exclusion/deduplication logic, review/evidence validation, retained contact history, complete HTTP mutations/exports, persistence, routing and access boundaries. Schema tests use Python 3's standard library as an optional developer check; Python is not needed to run the website. `npm run test:schema` calls `python3`, which on Windows is often only a Microsoft Store alias; run `py -3 scripts/check_schema.py` instead.
 
 ## Structure
 
 ```text
 src/App.tsx                         Shell, routes, dashboard, placeholders
-src/lib/database.ts                 Typed HTTP client
+src/FundingFeed.tsx                 Researched-company results page (/companies)
+src/UpdateNotice.tsx                Update banner
+src/lib/api.ts, database.ts         Typed HTTP clients
 server/database.mjs                 Local storage, migrations, aggregate SQL
 server/app.mjs                      HTTP API and built static website
 server/index.mjs                    Server lifecycle and loopback binding
+server/funding.mjs                  Report generation, eligibility, saving
+server/funding-sources.mjs          RSS sources, parsing, classification
+server/location-research.mjs        Article/official-page US evidence, safe fetch
+server/company-research.mjs         Website, founders, socials, ATS job boards
+server/companies.mjs                Company profile read/update service
+server/updates.mjs                  Update status/restart endpoint
 database/migrations/                Versioned schema upgrades
 scripts/dev.mjs                     Frontend + backend development runner
+scripts/update-core.mjs / -cli.mjs  Automatic updater
+scripts/make-release.mjs            Release ZIP/manifest (writes to ../downloads)
 Start-Signal.cmd / .ps1             D-drive Windows setup/start
 Open-Signal.cmd / .ps1              Separate D-drive Chrome profile
 ```
 
-Next: validate live source access on the target machine, then add source-backed company enrichment if requested.
+Not built yet: Contacts, Outreach CRM, Cold Email, Resume/Project matching and Follow-ups pages (their tables exist in migration 001), and resume upload.
 
 ## Automatic updates (v0.3)
 
@@ -97,7 +114,7 @@ Start-Signal.ps1 holds an exclusive launch lock, ensures Node/dependencies, chec
 
 Update packages are limited to this GitHub repository and program-path allowlist. No archive entry can target data, tools, caches, parent paths, device names, or linked program paths. Installed file inventories permit removing obsolete managed files while retaining user-created unknown files. SQLite is snapshotted before migration; previous dependency directories are retained by rename. Interrupted/unconfirmed or failed startups restore program, dependencies, and the pre-update database. Once a release is healthy and confirmed, later user activity is not automatically rolled back. Keep two generated rollback directories; generated backups are private data and excluded from packages.
 
-GitHub/network/checksum failure leaves current code in place. Failed releases are temporarily blocked until a newer version is published. A Git checkout is not automatically replaced. Updates rely on public/noninteractive HTTPS access to the configured repository; no credentials are embedded. TLS is always verified. Windows process coordination is syntax-checked but not fully Windows-tested; core upgrade/recovery and actual packaged-server startup were tested in an isolated Linux installation with a retained legacy DB.
+GitHub/network/checksum failure leaves current code in place. Failed releases are temporarily blocked until a newer version is published. A Git checkout is not automatically replaced: when `.git` exists, the update check fails before any file, dependency or database is touched, the launcher prints a warning and starts the local code. Pull upstream changes with Git instead. Updates rely on public/noninteractive HTTPS access to the configured repository; no credentials are embedded. TLS is always verified. Windows process coordination is syntax-checked but not fully Windows-tested; core upgrade/recovery and actual packaged-server startup were tested in an isolated Linux installation with a retained legacy DB.
 
 To publish future iterations: bump package.json/package-lock.json version, run npm run release, then commit/push source, downloads/Signal.zip, SHA file, update.json and generated installer assets together to codex/signal-web. Never publish a ZIP and manifest from different builds. The release script creates release.json inside the ZIP with per-file hashes; it is ignored in the working checkout. Use a strictly newer semantic version so installed clients receive fixes. No further user file replacement is required after bootstrap.
 

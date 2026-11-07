@@ -2,12 +2,13 @@
 
 Python is a validation tool here, not an application runtime dependency.
 """
+from contextlib import closing
 from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
 
-SCHEMA = (Path(__file__).resolve().parents[1] / 'database/migrations/001_initial.sql').read_text()
+SCHEMA = (Path(__file__).resolve().parents[1] / 'database/migrations/001_initial.sql').read_text(encoding='utf-8')
 
 
 class SchemaTests(unittest.TestCase):
@@ -68,11 +69,13 @@ class SchemaTests(unittest.TestCase):
     def test_database_survives_reopening(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'signal.sqlite3'
-            with sqlite3.connect(path) as db:
+            # sqlite3's own context manager only commits; close explicitly so
+            # Windows can delete the temporary directory afterwards.
+            with closing(sqlite3.connect(path)) as db, db:
                 db.executescript(SCHEMA)
                 db.execute("INSERT INTO companies (name) VALUES ('Retained')")
                 db.execute('PRAGMA user_version = 1')
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db:
                 self.assertEqual(db.execute('SELECT name FROM companies').fetchone()[0], 'Retained')
                 self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 1)
 
