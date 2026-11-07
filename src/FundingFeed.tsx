@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Download, ExternalLink, RefreshCw, Building2 } from 'lucide-react';
-import { api, roundLabels, type FundingState, type FundingArticle, type Company } from './lib/api';
+import { NavLink } from 'react-router-dom';
+import { Download, ExternalLink, RefreshCw, Building2, Check, Send } from 'lucide-react';
+import { api, roundLabels, type FundingState, type FundingArticle, type Company, type Outreach } from './lib/api';
 import { hasLocalServer } from './lib/database';
 
 function SourceLink({ url, label }: { url?: string | null; label: string }) {
@@ -13,7 +14,7 @@ function SourceLink({ url, label }: { url?: string | null; label: string }) {
     <span className="missing-value">{label}: not found on the checked public pages</span>
   );
 }
-function CompanyCard({ article }: { article: FundingArticle }) {
+function CompanyCard({ article, tracked, onAdd }: { article: FundingArticle; tracked: boolean; onAdd?: () => void }) {
   const c = article.company as Company;
   const missing = 'Not found on the checked public pages';
   return (
@@ -26,12 +27,25 @@ function CompanyCard({ article }: { article: FundingArticle }) {
           </div>
           <h2>{article.company_name}</h2>
         </div>
-        <span className="sector-tag">{roundLabels[article.round_type || ''] || article.round_type}</span>
+        <div className="card-actions">
+          <span className="sector-tag">{roundLabels[article.round_type || ''] || article.round_type}</span>
+          {tracked ? (
+            <NavLink to="/outreach" className="secondary-button">
+              <Check size={14} /> In outreach
+            </NavLink>
+          ) : (
+            onAdd && (
+              <button className="secondary-button" onClick={onAdd}>
+                <Send size={14} /> Add to outreach
+              </button>
+            )
+          )}
+        </div>
       </div>
       <div className="funding-facts">
         <strong>{article.amount_text || 'Amount not disclosed'}</strong>
         <span>
-          Funding news published:
+          Funding news published:{' '}
           {article.announced_on ||
             new Date(article.published_at).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })}
         </span>
@@ -142,9 +156,36 @@ export default function FundingFeed() {
   }, [available, report]);
   useEffect(() => {
     void load();
+  }, [load]);
+  // Poll only while a search is running; otherwise the page is static until the user acts.
+  const running = Boolean(data?.running);
+  useEffect(() => {
+    if (!running) return;
     const timer = setInterval(() => void load(), 3000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [running, load]);
+  // Companies already in the Outreach CRM, so their cards show that instead of an "add" button.
+  const [tracked, setTracked] = useState<Set<number>>(new Set());
+  const loadTracked = useCallback(async () => {
+    if (!available) return;
+    try {
+      const rows = await api<Outreach[]>('/api/outreach');
+      if (Array.isArray(rows)) setTracked(new Set(rows.map(row => row.company_id)));
+    } catch {
+      /* The results page still works without CRM data. */
+    }
+  }, [available]);
+  useEffect(() => {
+    void loadTracked();
+  }, [loadTracked]);
+  async function addToOutreach(companyId: number) {
+    try {
+      await api('/api/outreach', 'POST', { company_id: companyId, status: 'research' });
+      await loadTracked();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
   async function generate() {
     setStarting(true);
     setError('');
@@ -303,7 +344,12 @@ export default function FundingFeed() {
       )}
       <div className="funding-list">
         {filtered.map(a => (
-          <CompanyCard key={a.id} article={a} />
+          <CompanyCard
+            key={a.id}
+            article={a}
+            tracked={!!a.company && tracked.has(a.company.id)}
+            onAdd={a.company ? () => void addToOutreach(a.company!.id) : undefined}
+          />
         ))}
       </div>
       {!filtered.length && (

@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import { dashboardStats, projectRoot } from './database.mjs';
+import { dashboardStats, outreachPipeline, projectRoot } from './database.mjs';
 import { FundingError } from './funding.mjs';
 
 const contentTypes = {
@@ -15,7 +15,7 @@ const contentTypes = {
 
 export function createApp(
   db,
-  { staticRoot = join(projectRoot, 'dist'), funding, companies, updates, applicationVersion = 'unknown' } = {},
+  { staticRoot = join(projectRoot, 'dist'), funding, companies, crm, updates, applicationVersion = 'unknown' } = {},
 ) {
   const root = resolve(staticRoot);
   return createServer(async (req, res) => {
@@ -34,8 +34,10 @@ export function createApp(
     };
     try {
       const url = new URL(req.url, 'http://127.0.0.1');
+      const crmHandler = crm?.route(req.method === 'HEAD' ? 'GET' : req.method, url.pathname);
       if (!['GET', 'HEAD'].includes(req.method)) {
         const knownMutation =
+          Boolean(crmHandler) ||
           (updates && req.method === 'POST' && url.pathname === '/api/updates/apply') ||
           (funding &&
             ((req.method === 'POST' && url.pathname === '/api/funding/generate') ||
@@ -78,6 +80,13 @@ export function createApp(
           throw new FundingError('Invalid JSON request');
         }
       };
+      if (crmHandler) {
+        // Every CRM write (including DELETE) carries a JSON body, so it passes the same checks above.
+        const result = await crmHandler(req.method === 'GET' || req.method === 'HEAD' ? {} : await body());
+        const [status, payload] = Array.isArray(result) && typeof result[0] === 'number' ? result : [200, result];
+        json(status, payload);
+        return;
+      }
       if (updates && url.pathname === '/api/updates' && req.method === 'GET') {
         json(200, await updates.status());
         return;
@@ -160,7 +169,7 @@ export function createApp(
         return;
       }
       if (url.pathname === '/api/dashboard') {
-        json(200, dashboardStats(db));
+        json(200, { ...dashboardStats(db), pipeline: outreachPipeline(db) });
         return;
       }
       if (url.pathname.startsWith('/api/')) {

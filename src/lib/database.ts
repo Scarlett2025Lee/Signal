@@ -4,6 +4,8 @@ export interface DashboardStats {
   contacts: number;
   active_outreach: number;
   due_follow_ups: number;
+  /** Outreach count per status; missing statuses mean zero. */
+  pipeline?: Partial<Record<string, number>>;
 }
 
 export function hasLocalServer(): boolean {

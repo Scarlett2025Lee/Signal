@@ -93,6 +93,75 @@ export interface Company {
   jobs: CompanyJob[];
   funding?: { id: number; announced_on: string; round_type: string; source_url: string }[];
 }
+export interface Contact {
+  id: number;
+  company_id: number;
+  company_name: string;
+  name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  profile_url: string | null;
+  source_url: string | null;
+  notes: string;
+  is_founder: number;
+  outreach_count: number;
+}
+export type OutreachStatus =
+  | 'research'
+  | 'ready'
+  | 'contacted'
+  | 'in_conversation'
+  | 'interviewing'
+  | 'offer'
+  | 'closed';
+export interface Outreach {
+  id: number;
+  company_id: number;
+  company_name: string;
+  website: string | null;
+  contact_id: number | null;
+  contact_name: string | null;
+  contact_email: string | null;
+  role_title: string | null;
+  role_url: string | null;
+  status: OutreachStatus;
+  last_contacted_at: string | null;
+  notes: string;
+  created_at: string;
+  next_follow_up: string | null;
+}
+export interface FollowUp {
+  id: number;
+  outreach_id: number;
+  due_at: string;
+  status: 'pending' | 'completed' | 'dismissed';
+  completed_at: string | null;
+  notes: string;
+  company_id: number;
+  company_name: string;
+  role_title: string | null;
+  outreach_status: OutreachStatus;
+  contact_name: string | null;
+  contact_email: string | null;
+}
+export const outreachStatusLabels: Record<OutreachStatus, string> = {
+  research: 'Research',
+  ready: 'Ready to reach out',
+  contacted: 'Contacted',
+  in_conversation: 'In conversation',
+  interviewing: 'Interviewing',
+  offer: 'Offer',
+  closed: 'Closed',
+};
+export const outreachStatuses = Object.keys(outreachStatusLabels) as OutreachStatus[];
+/** Today's date in the browser's time zone, as YYYY-MM-DD. */
+export const localToday = () => new Date().toLocaleDateString('en-CA');
+export const addDays = (date: string, days: number) => {
+  const value = new Date(date + 'T12:00:00Z');
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+};
 export const roundLabels: Record<string, string> = {
   pre_seed: 'Pre-seed',
   seed: 'Seed',

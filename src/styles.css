@@ -1328,3 +1328,140 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---- Contacts, Outreach CRM and Follow-ups ---- */
+.panel-title .card-actions {
+  margin-top: 0;
+}
+.crm-form {
+  margin: 18px 0;
+}
+.crm-form .primary-button {
+  margin-top: 4px;
+}
+.stage-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
+}
+.stage-filter button {
+  font: inherit;
+  font-size: 11px;
+  color: #5b6b82;
+  background: #fff;
+  border: 1px solid #dce3ee;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.stage-filter button span {
+  margin-left: 4px;
+  color: #93a0b3;
+}
+.stage-filter button.active {
+  background: #eaf1fd;
+  border-color: #b9cdf2;
+  color: #2a60d0;
+}
+.table-panel {
+  padding: 0;
+  overflow-x: auto;
+}
+.crm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.crm-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #8e99a9;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e9f0;
+  white-space: nowrap;
+}
+.crm-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef1f5;
+  vertical-align: top;
+  color: #35475f;
+}
+.crm-table tr:last-child td {
+  border-bottom: 0;
+}
+.crm-table select,
+.crm-table input[type='date'] {
+  padding: 6px 8px;
+  min-width: 130px;
+}
+.notes-cell {
+  min-width: 160px;
+  padding: 6px 8px;
+}
+.row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.due-tag {
+  display: inline-block;
+  font-size: 10px;
+  border-radius: 5px;
+  padding: 4px 8px;
+  background: #f2f5fa;
+  color: #5d6f88;
+  white-space: nowrap;
+}
+.due-tag.overdue {
+  background: #fdecec;
+  color: #b4443f;
+}
+.founder-tag {
+  margin-left: 8px;
+}
+.follow-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.follow-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+}
+.follow-card h3 {
+  font-size: 14px;
+  margin: 8px 0 4px;
+}
+.follow-card p {
+  font-size: 12px;
+  color: #6b7c93;
+  margin: 2px 0;
+}
+.follow-card.overdue {
+  border-color: #f2c9c6;
+}
+.follow-card.completed,
+.follow-card.dismissed {
+  opacity: 0.7;
+}
+.stage-count {
+  font-size: 12px;
+  color: #2a60d0;
+  margin-left: 4px;
+}
+@media (max-width: 760px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .follow-card {
+    flex-direction: column;
+  }
+}

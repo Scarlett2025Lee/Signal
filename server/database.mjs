@@ -58,3 +58,13 @@ export function dashboardStats(db) {
     )
     .get();
 }
+
+/** Outreach count per status, e.g. { research: 2, contacted: 1 }. */
+export function outreachPipeline(db) {
+  return Object.fromEntries(
+    db
+      .prepare('SELECT status, COUNT(*) AS n FROM outreach GROUP BY status')
+      .all()
+      .map(row => [row.status, row.n]),
+  );
+}

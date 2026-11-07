@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import {
   Activity,
@@ -24,6 +24,12 @@ import {
 import { getDashboardStats, hasLocalServer, type DashboardStats } from './lib/database';
 import FundingFeed from './FundingFeed';
 import UpdateNotice from './UpdateNotice';
+import Contacts from './Contacts';
+import Outreach from './Outreach';
+import FollowUps from './FollowUps';
+
+/** Sections with a real page; the rest still show the scaffold placeholder. */
+const pages: Record<string, ComponentType> = { '/contacts': Contacts, '/outreach': Outreach, '/follow-ups': FollowUps };
 
 const sections: { path: string; label: string; icon: LucideIcon; group: string; description: string; next: string }[] =
   [
@@ -165,7 +171,13 @@ function Dashboard() {
       current = false;
     };
   }, [serverAvailable, attempt]);
-  const metrics: { label: string; key: keyof DashboardStats; icon: LucideIcon; detail: string; path: string }[] = [
+  const metrics: {
+    label: string;
+    key: Exclude<keyof DashboardStats, 'pipeline'>;
+    icon: LucideIcon;
+    detail: string;
+    path: string;
+  }[] = [
     {
       label: 'Companies saved',
       key: 'companies',
@@ -309,19 +321,30 @@ function Dashboard() {
           </NavLink>
         </div>
         <div className="pipeline">
-          {['Research', 'Ready to reach out', 'Contacted', 'In conversation', 'Interviewing'].map((stage, index) => (
-            <div className="pipeline-stage" key={stage}>
+          {(
+            [
+              ['research', 'Research'],
+              ['ready', 'Ready to reach out'],
+              ['contacted', 'Contacted'],
+              ['in_conversation', 'In conversation'],
+              ['interviewing', 'Interviewing'],
+            ] as const
+          ).map(([key, stage], index) => (
+            <div className="pipeline-stage" key={key}>
               <span className={`stage-dot stage-${index}`} />
               <span>{stage}</span>
+              {stats?.pipeline && <strong className="stage-count">{stats.pipeline[key] ?? 0}</strong>}
               {index < 4 && <ChevronRight size={15} />}
             </div>
           ))}
         </div>
-        <div className="empty-inline">
-          <Mail size={21} />
-          <span>Your next conversation belongs here.</span>
-          <small>Outreach records will appear once entry workflows are added.</small>
-        </div>
+        {!Object.values(stats?.pipeline ?? {}).some(Boolean) && (
+          <div className="empty-inline">
+            <Mail size={21} />
+            <span>Your next conversation belongs here.</span>
+            <small>Add a company to Outreach CRM to start tracking it.</small>
+          </div>
+        )}
       </section>
       <div className="dashboard-footer">
         <CircleHelp size={14} />
@@ -385,9 +408,16 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/funding" element={<Navigate to="/companies" replace />} />
             <Route path="/companies" element={<FundingFeed />} />
-            {sections.slice(2).map(section => (
-              <Route key={section.path} path={section.path} element={<SectionPage section={section} />} />
-            ))}
+            {sections.slice(2).map(section => {
+              const Page = pages[section.path];
+              return (
+                <Route
+                  key={section.path}
+                  path={section.path}
+                  element={Page ? <Page /> : <SectionPage section={section} />}
+                />
+              );
+            })}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
