@@ -5,23 +5,45 @@ import { EnvHttpProxyAgent, fetch as httpFetch } from 'undici';
 
 const STATES='Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming';
 const CITIES='San Francisco|San Jose|Palo Alto|Mountain View|Menlo Park|Redwood City|Boston|Seattle|Austin|Chicago|Los Angeles|San Diego|Miami|Denver|Atlanta|Dallas|Houston|New York City|Brooklyn|Bellevue|Boulder|Philadelphia|Pittsburgh|Nashville|Raleigh|Durham|Washington,?\\s*D\\.?C\\.?';
-const us=new RegExp(`\\b(?:United States(?: of America)?|USA|U\\.S\\.(?:A\\.)?|US|${STATES}|${CITIES})\\b`,'i');
+// Country tokens are case-sensitive so the pronoun "us" is not read as the United States.
+const usCountry=/\b(?:United States(?: of America)?|USA|U\.S\.(?:A\.)?|US)\b/;
+const usPlace=new RegExp(`\\b(?:${STATES}|${CITIES})\\b`,'i');
+// "Kirkland, Wash." / "Redwood City, Calif." (AP style) and "Boston, MA".
+const usStateSuffix=/\b[A-Za-z .'-]+,\s*(?:(?:CA|NY|MA|TX|WA|FL|CO|IL|PA|NC|NJ|VA|GA|AZ|UT|OH|OR|MI|MN|TN|MD|CT|WI|MO|IN|DC)\b|(?:Calif|Mass|Wash|Fla|Colo|Ill|Pa|Ga|Ariz|Mich|Minn|Ore|Tenn|Va|Conn|Md|Wis|Mo|Ind|Ky|La|Okla|Nev|N\.Y|N\.C|N\.J|D\.C)\.)/;
+const us={test:value=>usCountry.test(value)||usPlace.test(value)||usStateSuffix.test(value)};
+const MONTHS='Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec';
+const WIRES='PRNewswire|PR Newswire|GLOBE NEWSWIRE|Globe Newswire|Business Wire|BUSINESS WIRE|ACCESSWIRE|EINPresswire';
+const placeStart=new RegExp(`^(?:${STATES}|${CITIES}|United States|USA|US\\b)`,'i');
+/** Trim captured text such as "FinTech News Company News InsurTech Seattle" or "the New York" to the place itself. */
+function tidyPlace(value){
+  const line=value.split('\n').map(part=>part.trim()).filter(Boolean).pop()??'';
+  const tokens=line.replace(/^the\s+/i,'').split(/\s+/);
+  for(let i=0;i<tokens.length;i++){const rest=tokens.slice(i).join(' ');if(placeStart.test(rest)||/^[A-Z][a-z]+(?:\s[A-Z][a-z]+)?,\s*[A-Z]/.test(rest)||foreign.test(tokens[i]))return rest;}
+  return tokens.join(' ');
+}
 const foreign=/\b(Canada|Canadian|Vancouver|Toronto|Montreal|United Kingdom|UK|London|Norway|Norwegian|Oslo|Nordic|Scandinavian|Sweden|Swedish|Stockholm|Finland|Finnish|Helsinki|Denmark|Danish|Copenhagen|Iceland|Reykjavik|Germany|German|Berlin|France|French|Paris|Netherlands|Dutch|Amsterdam|Switzerland|Swiss|Zurich|Spain|Spanish|Madrid|Italy|Italian|Milan|Portugal|Lisbon|Ireland|Dublin|Israel|Israeli|Tel Aviv|India|Indian|Bengaluru|Bangalore|Singapore|Australia|Australian|Sydney|Melbourne|New Zealand|China|Chinese|Beijing|Shanghai|Japan|Tokyo|Brazil|Mexico)\b/i;
 const normalize=value=>String(value??'').toLowerCase().replace(/\b(incorporated|inc|llc|ltd|limited|corporation|corp)\b/g,'').replace(/[^\p{L}\p{N}]/gu,'');
 const escape=value=>value.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+/** Registrable-domain approximation: last two labels (good enough for the configured publishers). */
+const siteKey=hostname=>hostname.toLowerCase().split('.').slice(-2).join('.');
 export function locationFromText(text,companyName,{firstParty=false}={}) {
   text=text.replace(/\bU\.S\.(?:A\.)?/g,'USA');
   const company=escape(companyName);
   const clauses=[
     new RegExp(`${company}\\s*,\\s*(?:an?\\s+)?([^.!?;]{2,140}?)\\s*[-–—]\\s*based\\b`,'ig'),
     new RegExp(`${company}[^.!?;]{0,80}?\\b(?:headquartered|based)\\s+in\\s+([^.!?;]{2,140})`,'ig'),
-    new RegExp(`([^.!?;]{2,100}?)\\s*[-–—]\\s*based\\s+(?:[\\w-]+\\s+){0,4}${company}\\b`,'ig'),
+    // "Kirkland, Wash.-based Echodyne": up to four capitalized place words, periods allowed.
+    new RegExp(`((?:[A-Z][\\w'’.]*,?\\s+){0,3}[A-Z][\\w'’.]*)\\s*[-–—]\\s*based\\s+(?:[\\w-]+\\s+){0,4}${company}\\b`,'g'),
     new RegExp(`\\b(Nordic|Scandinavian|Norwegian|Swedish|Finnish|Danish|Canadian|UK|German|French|Israeli|Indian|Australian)\\s+(?:[\\w/-]+\\s+){0,5}(?:startup|company|firm)\\s+${company}\\b`,'ig'),
+    // "Seattle startup Finpilot" / "New York fintech company Kalepa".
+    new RegExp(`((?:[A-Z][\\w'’.]*,?\\s+){0,2}[A-Z][\\w'’.]*)\\s+(?:[\\w-]+\\s+){0,3}?(?:startup|company|firm)\\s+${company}\\b`,'g'),
+    // Press-release dateline: "REDWOOD CITY, Calif., Nov. 5, 2026 /PRNewswire/ -- RadianX".
+    new RegExp(`\\b([A-Z][A-Z.'-]+(?:\\s+[A-Z][A-Z.'-]+){0,3}(?:,\\s*[A-Z][A-Za-z.]+(?:\\s[A-Z][A-Za-z.]+)?)?),\\s+(?:${MONTHS})[a-z]*\\.?\\s+\\d{1,2},\\s+\\d{4}\\s*\\/\\s*(?:${WIRES})\\s*\\/?\\s*(?:--|—|–)\\s*(?:[\\w-]+\\s+){0,2}?${company}\\b`,'g'),
   ];
   if(firstParty)clauses.push(/\b(?:our (?:global |corporate )?headquarters|headquartered in|headquarters\s*[:–—-])\s*([^.!?;]{2,140})/ig);
   const evidence=[];
   for(const pattern of clauses)for(const match of text.matchAll(pattern)) {
-    const location=match[1].trim().replace(/^in\s+/i,'').replace(/[,\s]+$/,'');
+    const location=tidyPlace(match[1].trim().replace(/^in\s+/i,'').replace(/[,\s]+$/,''));
     const nonUS=foreign.test(location);const american=us.test(location)||/\b[A-Za-z ]+,\s*(?:CA|NY|MA|TX|WA|FL|CO|IL|PA|NC|NJ|VA|GA|AZ|UT|OH)\b/.test(location);
     if(nonUS||american)evidence.push({location,kind:nonUS&&american?'conflict':nonUS?'foreign':'us',quote:match[0].slice(0,350)});
   }
@@ -58,8 +80,11 @@ export function parsePage(html,url,companyName,{firstParty=false}={}) {
   const location=kinds.has('conflict')||(kinds.has('us')&&kinds.has('foreign'))?{kind:'conflict',location:'公开资料存在多个地点，需区分总部和办公室',evidence}:explicit.kind!=='unknown'?explicit:structured.find(e=>e.kind!=='unknown')?{...structured.find(e=>e.kind!=='unknown'),kind:'address_only',evidence}:explicit;
   const links=[];
   main.find('a[href]').each((_i,node)=>{try{const link=new URL($(node).attr('href'),url);if(link.protocol==='https:')links.push({url:link.href,text:$(node).text().trim()});}catch{}});
-  const structuredWebsite=organizations.map(org=>org.url).find(link=>{try{return typeof link==='string'&&new URL(link).protocol==='https:'&&new URL(link).hostname!==new URL(url).hostname;}catch{return false;}});
-  const website=structuredWebsite||links.find(link=>(normalize(link.text)===normalize(companyName)||normalize(new URL(link.url).hostname.replace(/^www\./,'').split('.')[0])===normalize(companyName))&&new URL(link.url).hostname!==new URL(url).hostname&&!/(linkedin|twitter|x)\.com$/.test(new URL(link.url).hostname))?.url||'';
+  // A publisher subdomain (funding.alleywatch.com on www.alleywatch.com) is not the company's site.
+  const publisher=siteKey(new URL(url).hostname);
+  const external=link=>siteKey(new URL(link).hostname)!==publisher;
+  const structuredWebsite=organizations.map(org=>org.url).find(link=>{try{return typeof link==='string'&&new URL(link).protocol==='https:'&&external(link);}catch{return false;}});
+  const website=structuredWebsite||links.find(link=>(normalize(link.text)===normalize(companyName)||normalize(new URL(link.url).hostname.replace(/^www\./,'').split('.')[0])===normalize(companyName))&&external(link.url)&&!/(linkedin|twitter|x)\.com$/.test(new URL(link.url).hostname))?.url||'';
   const about=links.filter(link=>new URL(link.url).hostname===new URL(url).hostname&&/about|company|contact|locations/i.test(link.text+' '+new URL(link.url).pathname)).slice(0,2).map(link=>link.url);
   return {text,location,website,about,evidence:evidence.map(e=>({...e,url}))};
 }

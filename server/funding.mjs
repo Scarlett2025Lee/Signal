@@ -1,8 +1,12 @@
-import { SOURCES, fetchFeedPage, reportingWindow, easternDay, classifyArticle } from './funding-sources.mjs';
+import { SOURCES, ACTIVE_SOURCES, fetchFeedPage, reportingWindow, easternDay, classifyArticle } from './funding-sources.mjs';
 import { researchArticle } from './location-research.mjs';
 import { researchCompany } from './company-research.mjs';
 
 const DAY = 86400000;
+// Bump when classification rules change: stored candidates are re-checked and a fresh run is triggered.
+export const CLASSIFICATION_VERSION = 6;
+// Candidates researched per run (four workers). Raised from 30 when US-focused sources were added.
+export const MAX_RESEARCH = 60;
 const stages = ['pre_seed', 'seed', 'series_a', 'series_b'];
 const sectors = ['AI', 'Fintech', 'AI + Fintech'];
 export class FundingError extends Error { constructor(message, status = 400) { super(message); this.status = status; } }
@@ -19,21 +23,22 @@ export async function researchCandidate(article,source,{signal,fetchPage,clock=(
   const company=await researchCompany(located,{signal,clock,fetchPage});
   return{...located,eligibility:company.complete?'included':'research',company_profile:company.profile,research_error:company.error||located.research_error};
 }
-export function createFundingService(db, { sources = SOURCES, fetchPage = fetchFeedPage, clock = () => new Date(), research=(article,source,signal)=>researchCandidate(article,source,{signal,clock}) } = {}) {
+export function createFundingService(db, { sources = ACTIVE_SOURCES, fetchPage = fetchFeedPage, clock = () => new Date(), research=(article,source,signal)=>researchCandidate(article,source,{signal,clock}) } = {}) {
   let running = false;
   let timer;
   let active;
   let stopped = false;
   let controller;
   let progress={completed:0,total:0};
-  if(db.prepare('SELECT COUNT(*) n FROM funding_articles WHERE classification_version<5').get().n)db.prepare('UPDATE funding_schedule SET last_success_at=NULL,last_attempt_at=NULL WHERE id=1').run();
+  const V = CLASSIFICATION_VERSION;
+  if(db.prepare('SELECT COUNT(*) n FROM funding_articles WHERE classification_version<?').get(V).n)db.prepare('UPDATE funding_schedule SET last_success_at=NULL,last_attempt_at=NULL WHERE id=1').run();
   // Repair already-stored false positives without deleting user-confirmed records.
-  for(const row of db.prepare("SELECT * FROM funding_articles WHERE classification_version<5 AND review_status!='approved'").all()){
-    const source=sources.find(s=>s.name===row.source_name)||{sectorHint:row.source_name==='FinTech Global'?'Fintech':undefined};
+  for(const row of db.prepare("SELECT * FROM funding_articles WHERE classification_version<? AND review_status!='approved'").all(V)){
+    const source=[...sources,...SOURCES].find(s=>s.name===row.source_name)||{sectorHint:row.source_name==='FinTech Global'?'Fintech':undefined};
     const valid=classifyArticle(row,source);
-    db.prepare('UPDATE funding_articles SET eligibility=?,classification_version=5 WHERE id=?').run(valid?'research':'excluded',row.id);
+    db.prepare('UPDATE funding_articles SET eligibility=?,classification_version=? WHERE id=?').run(valid?'research':'excluded',V,row.id);
   }
-  db.prepare("UPDATE funding_articles SET classification_version=5 WHERE review_status='approved' AND classification_version<5").run();
+  db.prepare("UPDATE funding_articles SET classification_version=? WHERE review_status='approved' AND classification_version<?").run(V,V);
 
   function snapshot(reportId) {
     const schedule = db.prepare('SELECT * FROM funding_schedule WHERE id=1').get();
@@ -71,7 +76,7 @@ export function createFundingService(db, { sources = SOURCES, fetchPage = fetchF
     }));
     if (stopped) return;
     const jobs=results.flatMap(source=>source.candidates.map(article=>({source,article})));
-    progress={completed:0,total:Math.min(jobs.length,30)};
+    progress={completed:0,total:Math.min(jobs.length,MAX_RESEARCH)};
     const researched=[];let next=0;
     await Promise.all(Array.from({length:4},async()=>{while(!stopped&&next<progress.total){const job=jobs[next++];try{
       const result=await research(job.article,job.source,controller.signal);
@@ -92,7 +97,9 @@ export function createFundingService(db, { sources = SOURCES, fetchPage = fetchF
         insert.run(article.source_url, article.source_name, article.title, article.summary, article.published_at, article.company_name, article.company_key, article.sector, article.country_code, article.round_type, article.amount_text, article.extraction_notes);
         const { id } = db.prepare('SELECT id FROM funding_articles WHERE source_url=?').get(article.source_url);
         const prior=db.prepare('SELECT review_status FROM funding_articles WHERE id=?').get(id);
-        if(prior.review_status!=='rejected')db.prepare(`UPDATE funding_articles SET summary=?,eligibility=?,hq_location=?,hq_evidence_json=?,research_error=?,researched_at=?,company_website=?,classification_version=5 WHERE id=?`).run(article.summary,article.eligibility||'research',article.hq_location||'',JSON.stringify(article.hq_evidence||[]),article.research_error||'',now.toISOString(),article.company_website||'',id);
+        if(prior.review_status!=='rejected')db.prepare(`UPDATE funding_articles SET summary=?,eligibility=?,hq_location=?,hq_evidence_json=?,research_error=?,researched_at=?,company_website=?,classification_version=? WHERE id=?`).run(article.summary,article.eligibility||'research',article.hq_location||'',JSON.stringify(article.hq_evidence||[]),article.research_error||'',now.toISOString(),article.company_website||'',V,id);
+        // Unconfirmed rows take the latest extraction; confirmed rows stay tied to their saved company/round.
+        if(prior.review_status==='pending')db.prepare('UPDATE funding_articles SET company_name=?,company_key=?,sector=?,country_code=?,round_type=?,amount_text=?,extraction_notes=? WHERE id=?').run(article.company_name,article.company_key,article.sector??null,article.country_code??null,article.round_type??null,article.amount_text??'',article.extraction_notes??'',id);
         db.prepare('INSERT OR IGNORE INTO report_articles(report_id,article_id) VALUES(?,?)').run(report.id, id);
       }
       if (status !== 'failed') db.prepare('UPDATE funding_schedule SET last_success_at=? WHERE id=1').run(now.toISOString());
