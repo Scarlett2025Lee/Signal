@@ -8,7 +8,11 @@ import { getDashboardStats, hasLocalServer } from './lib/database';
 vi.mock('./lib/database', () => ({ getDashboardStats: vi.fn(), hasLocalServer: vi.fn() }));
 
 function renderApp(path = '/') {
-  return render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+  );
 }
 
 beforeEach(() => {
@@ -27,7 +31,7 @@ describe('workspace navigation', () => {
       await user.click(link);
       expect(link).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(link.textContent!);
-      if (link.textContent!=='company') expect(screen.getByText(/This section is scaffolded/)).toBeVisible();
+      if (link.textContent !== 'company') expect(screen.getByText(/This section is scaffolded/)).toBeVisible();
     }
     await user.click(within(navigation).getByRole('link', { name: 'Dashboard' }));
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('A little focus.');
@@ -52,7 +56,13 @@ describe('database state', () => {
 
   it('renders actual counts returned by the local website', async () => {
     vi.mocked(hasLocalServer).mockReturnValue(true);
-    vi.mocked(getDashboardStats).mockResolvedValue({ companies: 12, funding_rounds: 15, contacts: 4, active_outreach: 3, due_follow_ups: 2 });
+    vi.mocked(getDashboardStats).mockResolvedValue({
+      companies: 12,
+      funding_rounds: 15,
+      contacts: 4,
+      active_outreach: 3,
+      due_follow_ups: 2,
+    });
     renderApp();
     expect(await screen.findByText('Connected to your local SQLite database.')).toBeVisible();
     for (const value of ['12', '15', '3', '2']) expect(screen.getByText(value, { selector: 'strong' })).toBeVisible();
@@ -60,11 +70,15 @@ describe('database state', () => {
 
   it('allows retrying a failed database read', async () => {
     vi.mocked(hasLocalServer).mockReturnValue(true);
-    vi.mocked(getDashboardStats).mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce({ companies: 0, funding_rounds: 0, contacts: 0, active_outreach: 0, due_follow_ups: 0 });
+    vi.mocked(getDashboardStats)
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValueOnce({ companies: 0, funding_rounds: 0, contacts: 0, active_outreach: 0, due_follow_ups: 0 });
     renderApp();
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Retry' }));
-    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Connected to your local SQLite database.'));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Connected to your local SQLite database.'),
+    );
     expect(getDashboardStats).toHaveBeenCalledTimes(2);
     expect(screen.getAllByText('0', { selector: 'strong' })).toHaveLength(4);
   });

@@ -19,4 +19,6 @@ for (const [tag, source] of stylesheets) {
 }
 html = html.replace(/<link\b[^>]*\brel="modulepreload"[^>]*>/g, '');
 await writeFile(resolve(directory, 'signal-preview.html'), html);
-console.log('Created dist/signal-preview.html. Open this file directly in a browser; SQLite requires the local website server.');
+console.log(
+  'Created dist/signal-preview.html. Open this file directly in a browser; SQLite requires the local website server.',
+);

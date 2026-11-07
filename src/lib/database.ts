@@ -15,7 +15,14 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   if (!response.ok) throw new Error('Unable to read the local database');
   const value: unknown = await response.json();
   const keys = ['companies', 'funding_rounds', 'contacts', 'active_outreach', 'due_follow_ups'] as const;
-  if (!value || typeof value !== 'object' || !keys.every(key => key in value && Number.isSafeInteger((value as DashboardStats)[key]) && (value as DashboardStats)[key] >= 0)) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !keys.every(
+      key =>
+        key in value && Number.isSafeInteger((value as DashboardStats)[key]) && (value as DashboardStats)[key] >= 0,
+    )
+  ) {
     throw new Error('Invalid database response');
   }
   return value as DashboardStats;

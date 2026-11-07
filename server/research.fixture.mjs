@@ -1,2 +1,23 @@
 // Fictional deterministic research used only by tests; never seeds user databases.
-export async function completedResearchFixture(article){return{...article,eligibility:article.country_code==='US'&&article.round_type?'included':'research',company_website:'https://example.com',hq_location:article.hq_location||'Boston, MA',hq_evidence:[{quote:'Fictional US headquarters fixture',url:article.source_url}],company_profile:{website:'https://example.com',headquarters:article.hq_location||'Boston, MA',product_summary:'Fictional test company only',offices:'Boston, MA',info_source_url:'https://example.com',info_checked_on:'2026-10-31',hiring_source_url:'https://example.com/careers',hiring_checked_on:'2026-10-31',hiring_status:'no_relevant_roles',founders:[],jobs:[]}};}
+export async function completedResearchFixture(article) {
+  return {
+    ...article,
+    eligibility: article.country_code === 'US' && article.round_type ? 'included' : 'research',
+    company_website: 'https://example.com',
+    hq_location: article.hq_location || 'Boston, MA',
+    hq_evidence: [{ quote: 'Fictional US headquarters fixture', url: article.source_url }],
+    company_profile: {
+      website: 'https://example.com',
+      headquarters: article.hq_location || 'Boston, MA',
+      product_summary: 'Fictional test company only',
+      offices: 'Boston, MA',
+      info_source_url: 'https://example.com',
+      info_checked_on: '2026-10-31',
+      hiring_source_url: 'https://example.com/careers',
+      hiring_checked_on: '2026-10-31',
+      hiring_status: 'no_relevant_roles',
+      founders: [],
+      jobs: [],
+    },
+  };
+}

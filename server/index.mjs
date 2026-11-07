@@ -10,22 +10,34 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('SIGNAL
 const db = openDatabase();
 const funding = createFundingService(db);
 const companies = createCompaniesService(db);
-const updates=createUpdateService({managed:process.env.SIGNAL_MANAGED_LAUNCHER==='1',requestRestart:()=>{setTimeout(()=>void shutdown(75),500);}});
-const applicationVersion=await currentVersion(projectRoot);
-const server = createApp(db, { funding, companies, updates,applicationVersion });
-server.on('error', error => { console.error(error.message); db.close(); process.exit(1); });
+const updates = createUpdateService({
+  managed: process.env.SIGNAL_MANAGED_LAUNCHER === '1',
+  requestRestart: () => {
+    setTimeout(() => void shutdown(75), 500);
+  },
+});
+const applicationVersion = await currentVersion(projectRoot);
+const server = createApp(db, { funding, companies, updates, applicationVersion });
+server.on('error', error => {
+  console.error(error.message);
+  db.close();
+  process.exit(1);
+});
 server.listen(port, '127.0.0.1', () => {
   console.log(`Signal website: http://127.0.0.1:${port}`);
   console.log(`Local data: ${dataDirectory()}`);
   funding.start();
 });
 let stopping = false;
-async function shutdown(exitCode=0) {
+async function shutdown(exitCode = 0) {
   if (stopping) return;
   stopping = true;
   await funding.stop();
-  server.close(() => { db.close(); process.exit(exitCode); });
+  server.close(() => {
+    db.close();
+    process.exit(exitCode);
+  });
   server.closeIdleConnections();
 }
-process.on('SIGINT', ()=>void shutdown());
-process.on('SIGTERM', ()=>void shutdown());
+process.on('SIGINT', () => void shutdown());
+process.on('SIGTERM', () => void shutdown());

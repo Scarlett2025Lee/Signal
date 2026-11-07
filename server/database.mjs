@@ -19,8 +19,14 @@ export function openDatabase(filename = join(dataDirectory(), 'signal.sqlite3'))
   try {
     db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
     const { user_version: version } = db.prepare('PRAGMA user_version').get();
-    const migrations = ['001_initial.sql', '002_funding_feed.sql', '003_company_profiles.sql', '004_researched_funding.sql'];
-    if (version > migrations.length) throw new Error('Database is newer than this version of Signal. Refusing to downgrade.');
+    const migrations = [
+      '001_initial.sql',
+      '002_funding_feed.sql',
+      '003_company_profiles.sql',
+      '004_researched_funding.sql',
+    ];
+    if (version > migrations.length)
+      throw new Error('Database is newer than this version of Signal. Refusing to downgrade.');
     for (let index = version; index < migrations.length; index++) {
       const migration = readFileSync(new URL(`../database/migrations/${migrations[index]}`, import.meta.url), 'utf8');
       db.exec('BEGIN IMMEDIATE');
@@ -40,11 +46,15 @@ export function openDatabase(filename = join(dataDirectory(), 'signal.sqlite3'))
 }
 
 export function dashboardStats(db) {
-  return db.prepare(`SELECT
+  return db
+    .prepare(
+      `SELECT
     (SELECT COUNT(*) FROM companies) AS companies,
     (SELECT COUNT(*) FROM funding_rounds) AS funding_rounds,
     (SELECT COUNT(*) FROM contacts) AS contacts,
     (SELECT COUNT(*) FROM outreach WHERE status IN ('contacted', 'in_conversation', 'interviewing')) AS active_outreach,
     (SELECT COUNT(*) FROM follow_ups WHERE status = 'pending' AND julianday(due_at) <= julianday('now')) AS due_follow_ups
-  `).get();
+  `,
+    )
+    .get();
 }

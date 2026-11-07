@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+.cache/
+.tools/
+package-lock.json
+release.json
+# Recorded real-world input; keep byte-for-byte as captured.
+server/fixtures/
+*.md
