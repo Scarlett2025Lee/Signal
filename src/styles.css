@@ -1476,3 +1476,14 @@ a {
 .template-editor .form-grid {
   margin-top: 8px;
 }
+.founder-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 8px;
+}
+.founder-title {
+  font-size: 11px;
+  color: #8e99a9;
+}

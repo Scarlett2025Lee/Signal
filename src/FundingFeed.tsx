@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { Download, ExternalLink, RefreshCw, Building2, Check, Send } from 'lucide-react';
 import { api, roundLabels, type FundingState, type FundingArticle, type Company, type Outreach } from './lib/api';
 import { hasLocalServer } from './lib/database';
+import { briefSummary, cardFounders, preferredEmail, websiteLabel } from './companyCard';
 
 function SourceLink({ url, label }: { url?: string | null; label: string }) {
   return url ? (
@@ -16,7 +17,9 @@ function SourceLink({ url, label }: { url?: string | null; label: string }) {
 }
 function CompanyCard({ article, tracked, onAdd }: { article: FundingArticle; tracked: boolean; onAdd?: () => void }) {
   const c = article.company as Company;
-  const missing = 'Not found on the checked public pages';
+  const summary = briefSummary(c, article);
+  const email = preferredEmail(c);
+  const founders = cardFounders(c, article);
   return (
     <article className="panel result-company">
       <div className="panel-title">
@@ -52,43 +55,60 @@ function CompanyCard({ article, tracked, onAdd }: { article: FundingArticle; tra
         <span>{c.headquarters || article.hq_location || '—'}</span>
       </div>
       <div className="company-links">
-        <SourceLink url={c.website} label="Website" />
+        {c.website ? (
+          <a className="text-link" href={c.website} target="_blank" rel="noreferrer">
+            {websiteLabel(c.website)}
+            <ExternalLink size={13} />
+          </a>
+        ) : (
+          <span className="missing-value">Website: not found</span>
+        )}
         <SourceLink url={c.x_url} label="Company X" />
         <SourceLink url={c.linkedin_url} label="Company LinkedIn" />
       </div>
       <div className="result-grid">
         <section>
-          <h3>Business and location</h3>
-          <p>{c.product_summary || missing}</p>
+          <h3>Business</h3>
+          <p>{summary || 'Not found'}</p>
           <dl>
-            <dt>Headquarters / base</dt>
+            <dt>HQ</dt>
             <dd>{c.headquarters || article.hq_location || '—'}</dd>
-            <dt>Offices / public addresses</dt>
-            <dd className="preserve-lines">{c.offices || missing}</dd>
-            <dt>Public company email</dt>
-            <dd>{c.public_email || missing}</dd>
-            <dt>Public company phone</dt>
-            <dd>{c.public_phone || missing}</dd>
+            <dt>Email</dt>
+            <dd>
+              {email ? (
+                <>
+                  <a className="text-link" href={`mailto:${email.address}`}>
+                    {email.address}
+                  </a>{' '}
+                  <span className="muted-badge">{email.kind.toUpperCase()}</span>
+                </>
+              ) : (
+                'Not found'
+              )}
+            </dd>
           </dl>
         </section>
         <section>
           <h3>Founders</h3>
-          {c.founders?.length ? (
-            c.founders.map((f, i) => (
-              <div className="founder-card" key={i}>
-                <strong>{f.name}</strong>
-                <span>{f.title}</span>
-                <SourceLink url={f.profile_url} label="Founder LinkedIn" />
-                <p>
-                  Public email: {f.email || missing}
-                  <br />
-                  Public phone: {f.phone || missing}
-                </p>
-                <SourceLink url={f.source_url} label="Source" />
-              </div>
-            ))
+          {founders.length ? (
+            <ul className="founder-list">
+              {founders.map(f => (
+                <li key={f.name}>
+                  <a
+                    className="text-link"
+                    href={f.linkedin}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={f.isSearch ? 'LinkedIn search (no profile link was found)' : 'LinkedIn profile'}
+                  >
+                    {f.name}
+                  </a>{' '}
+                  <span className="founder-title">{f.title}</span>
+                </li>
+              ))}
+            </ul>
           ) : (
-            <p>No citable founder information found on the checked public pages.</p>
+            <p>Not found</p>
           )}
         </section>
         <section>
@@ -107,19 +127,6 @@ function CompanyCard({ article, tracked, onAdd }: { article: FundingArticle; tra
             </div>
           ))}
           <SourceLink url={c.hiring_source_url} label="Careers / website page checked" />
-        </section>
-        <section>
-          <h3>Recruiting contacts</h3>
-          <dl>
-            <dt>Recruiting email</dt>
-            <dd>{c.recruiting_email || missing}</dd>
-            <dt>Recruiting phone</dt>
-            <dd>{c.recruiting_phone || missing}</dd>
-          </dl>
-          <p className="scope-note">
-            Only publicly posted contact details are shown. Roles are a hiring signal from current public pages, not a
-            statement of company strategy.
-          </p>
         </section>
       </div>
       <details className="result-evidence">

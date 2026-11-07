@@ -99,7 +99,7 @@ it('shows one final company with funding, headquarters, socials, founders, conta
   expect(await screen.findByText('FixtureAI')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Companies' })).toBeVisible();
   expect(screen.getByRole('link', { name: 'Company X' })).toHaveAttribute('href', 'https://x.com/fixture');
-  expect(screen.getByRole('link', { name: 'Founder LinkedIn' })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'Fixture Founder' })).toHaveAttribute(
     'href',
     'https://linkedin.com/in/fixture',
   );
