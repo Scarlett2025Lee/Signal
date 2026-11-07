@@ -14,7 +14,13 @@ The background pipeline detects financing events (not generic verbs like closes 
 
 Results cover US AI/Fintech companies, Pre-seed to Series B, with financing news published in the seven-day New York calendar window. The displayed date is the news-publication date, not proof of funds closing. There is no exhaustive web-search provider or LinkedIn scraping; this is bounded research of reachable publisher/official pages. At most 60 news candidates per run (`MAX_RESEARCH`) are researched with four workers. Coverage/failures remain report-level diagnostics, never manual company tasks.
 
-Existing incorrect unconfirmed articles are retained privately but removed from displayed results. Schema 004 triggers a new automatic run after upgrade; old confirmed data remains intact and is re-enriched when encountered. Weekly scheduling, exports, D-drive storage and automatic updates remain available. Other CRM/email/matching modules remain scaffolded.
+Existing incorrect unconfirmed articles are retained privately but removed from displayed results. Schema 004 triggers a new automatic run after upgrade; old confirmed data remains intact and is re-enriched when encountered. Weekly scheduling, exports, D-drive storage and automatic updates remain available.
+
+**Contacts, Outreach CRM and Follow-ups.** Contacts are kept per company (founders found by research appear automatically). Outreach records move through seven stages (Research → Ready → Contacted → In conversation → Interviewing → Offer → Closed); moving to Contacted records today's date. Follow-ups can be scheduled, completed, snoozed or dismissed, and due ones are counted on the Dashboard. A company card on Companies has "Add to outreach".
+
+**Cold Email Generator.** Fills an editable template (stored in SQLite) from the company's funding, description, location, open PM/GTM/Data roles and the contact's first name, leading with the chosen track. Drafts are saved per outreach record and can be copied or opened in your email app. Signal never sends email; "I sent it" only records a manual send. The default template has [bracketed] lines for your own background: fill them once in "Edit template". The description comes from the company website's meta description, which is sometimes a slogan, so review that line.
+
+The interface is in English. Resume / Project matching is still a placeholder.
 
 ## Source access and coverage
 
@@ -59,7 +65,7 @@ The launcher has run successfully on Windows 11 (see `.cache/logs/startup.log`).
 
 By default, `data/signal.sqlite3` lives under this project, regardless of the shell's working directory. Override it with the absolute path `SIGNAL_DATA_DIR`; relative/empty values are rejected. An unavailable directory causes startup to fail, without a fallback to AppData. Default production port is 1421; `SIGNAL_PORT` can override it when running just the built server. Development's Vite proxy and the Windows browser launcher use 1421.
 
-Migrations 001–004 are applied transactionally in order using `PRAGMA user_version`, preserving a populated v1 database. Existing records survive restart. A database created by a newer application version is rejected. Foreign keys are enabled per connection. No sample companies or personal documents are seeded. If you used an older desktop scaffold, close it and back up its database before copying it to the new selected data directory; no old data is moved or deleted automatically.
+Migrations 001–005 are applied transactionally in order using `PRAGMA user_version`, preserving a populated v1 database. Existing records survive restart. A database created by a newer application version is rejected. Foreign keys are enabled per connection. No sample companies or personal documents are seeded. If you used an older desktop scaffold, close it and back up its database before copying it to the new selected data directory; no old data is moved or deleted automatically.
 
 Amounts use integer minor units with an explicit currency. Funding dates use `YYYY-MM-DD`; future write endpoints should normalize timestamps to UTC ISO 8601 ending in `Z`. Match scores range from 0 to 100, and each match names exactly one resume or project with a rationale. Outreach protects linked company/contact history from deletion. Deleting outreach cascades its drafts, matches, and reminders. The backend exposes typed funding/report/review/export, company-profile, health and aggregate endpoints. JSON writes have size/origin checks; arbitrary SQL and filesystem operations are not exposed.
 
@@ -80,6 +86,7 @@ npm run build
 npm test
 npm run test:server
 npm run test:schema
+npm run format:check   # Prettier; `npm run format` rewrites files
 ```
 
 UI tests cover funding review/generation/errors, company source links/editing, navigation, routes, offline state, counts and retry. Server tests cover legacy migration, date/exclusion/deduplication logic, review/evidence validation, retained contact history, complete HTTP mutations/exports, persistence, routing and access boundaries. Schema tests use Python 3's standard library as an optional developer check; Python is not needed to run the website. `npm run test:schema` calls `python3`, which on Windows is often only a Microsoft Store alias; run `py -3 scripts/check_schema.py` instead.
@@ -90,6 +97,9 @@ UI tests cover funding review/generation/errors, company source links/editing, n
 src/App.tsx                         Shell, routes, dashboard, placeholders
 src/FundingFeed.tsx                 Researched-company results page (/companies)
 src/UpdateNotice.tsx                Update banner
+src/Contacts.tsx, Outreach.tsx      Contacts and Outreach CRM pages
+src/FollowUps.tsx, ColdEmail.tsx    Follow-up tracker and Cold Email Generator
+src/crm.tsx                         Shared page helpers (loading, company picker)
 src/lib/api.ts, database.ts         Typed HTTP clients
 server/database.mjs                 Local storage, migrations, aggregate SQL
 server/app.mjs                      HTTP API and built static website
@@ -99,6 +109,8 @@ server/funding-sources.mjs          RSS sources, parsing, classification
 server/location-research.mjs        Article/official-page US evidence, safe fetch
 server/company-research.mjs         Website, founders, socials, ATS job boards
 server/companies.mjs                Company profile read/update service
+server/crm.mjs                      Contacts, outreach and follow-up API
+server/email.mjs                    Email template filling and drafts API
 server/updates.mjs                  Update status/restart endpoint
 database/migrations/                Versioned schema upgrades
 scripts/dev.mjs                     Frontend + backend development runner
@@ -108,7 +120,7 @@ Start-Signal.cmd / .ps1             D-drive Windows setup/start
 Open-Signal.cmd / .ps1              Separate D-drive Chrome profile
 ```
 
-Not built yet: Contacts, Outreach CRM, Cold Email, Resume/Project matching and Follow-ups pages (their tables exist in migration 001), and resume upload.
+Not built yet: Resume / Project matching (its tables exist in migration 001) and resume upload.
 
 ## Automatic updates (v0.3)
 
