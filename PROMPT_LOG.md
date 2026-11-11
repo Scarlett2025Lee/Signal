@@ -197,3 +197,24 @@ This shipped in `825fc52`, and the README was updated in `95ade1c`.
 **Feedback:** —
 
 **Decision:** New entries are added at the bottom and quote the request where possible.
+
+---
+
+## 2026-11-11 — Sand and terracotta redesign
+
+**Request:** "I wanna make the signal a real website instead a local hub." After choosing a hosted demo plus a local main copy: "I dont like the UIdesign now … the color of it is very ugly and feels like a bit messy." From three mocked-up directions: "Go with C, sand and terracotta."
+
+**Implementation:**
+- **Palette:** `src/styles.css` used about 170 slightly different one-off colors. Each was mapped by hue and lightness to one of 21 named tokens defined once in `:root`: warm sand neutrals, a terracotta accent and a sage green for success. Error and warning tints keep their own colors.
+- **Type:** page titles use a serif face (Georgia), and faint text is darker so it's easier to read.
+- **Less clutter:**
+  - the main button is solid terracotta
+  - info notes, the "Generate weekly" bar and the collapsible source notes are now plain text instead of bordered boxes; error notices stay boxed
+  - the sidebar sits on sand and the top bar is transparent
+  - the hero panel's gradient is flat
+
+**Problems:** The automatic mapping first turned pale error and success tints into neutrals and tinted ordinary borders terracotta. Both were corrected: status tints are kept, and all borders use the neutral line color.
+
+**Feedback:** —
+
+**Decision:** Visual change only: no pages, features, wording or buttons changed (per the "only change what is asked" rule). The hosted demo is paused until the redesign is approved, so recruiters will see the new look.
