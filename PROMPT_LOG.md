@@ -218,3 +218,29 @@ This shipped in `825fc52`, and the README was updated in `95ade1c`.
 **Feedback:** —
 
 **Decision:** Visual change only: no pages, features, wording or buttons changed (per the "only change what is asked" rule). The hosted demo is paused until the redesign is approved, so recruiters will see the new look.
+
+---
+
+## 2026-11-11 — Public demo
+
+**Request:** "I wanna make the signal a real website instead a local hub." Chose "option A": a public demo for recruiters, with the local copy kept as the main tool. After the redesign: "Push and build demo."
+
+**Implementation:**
+- **Demo mode:** `SIGNAL_DEMO=1` runs the server with made-up sample data held in memory (`server/demo-data.mjs`): 5 fictional companies with funding, founders and roles, 4 outreach records, 2 follow-ups and 1 email draft. All links and emails use example.com. The data resets every 6 hours.
+- **Turned off in the demo:** news fetching, the weekly schedule, the updater and résumé PDF saving.
+- **Public address:** the demo answers on any hostname and accepts edits from its own HTTPS page.
+- **Safety:** the server refuses to listen on a public address unless demo mode is on.
+- **UI:** a "You're viewing a demo" banner linking to GitHub, and a "Demo · sample data" label in the top bar. Both appear only in the demo.
+- **Hosting:** a `Dockerfile`, a `.dockerignore` that keeps `data/` and `resumes/` out of the image, `render.yaml` for one-click deployment on Render's free plan, and `DEPLOY.md`.
+- **Tests:** 3 new server tests; all 55 pass.
+
+**Problems:**
+- The first sample follow-ups were stored as full timestamps, but the app stores plain dates, so they showed raw times. They now use dates.
+- Docker Desktop wasn't running, so the image wasn't built locally. The demo was checked by running the server directly in demo mode.
+
+**Feedback:** —
+
+**Decision:**
+- Ship the demo only, with no login. A private online copy can be added later if needed.
+- Host on Render's free plan. It sleeps when idle, which is acceptable for a résumé link.
+- The account is created by the user.

@@ -391,7 +391,21 @@ function SectionPage({ section }: { section: (typeof sections)[number] }) {
   );
 }
 
+/** True when the server runs as the public demo with sample data. */
+function useDemoMode(): boolean {
+  const [demo, setDemo] = useState(false);
+  useEffect(() => {
+    if (!hasLocalServer()) return;
+    fetch('/api/health', { signal: AbortSignal.timeout(8000) })
+      .then(response => (response.ok ? response.json() : null))
+      .then(health => setDemo(health?.demo === true))
+      .catch(() => {});
+  }, []);
+  return demo;
+}
+
 export default function App() {
+  const demo = useDemoMode();
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
@@ -405,10 +419,19 @@ export default function App() {
           </span>
           <span className="topbar-note">
             <span className="status-dot" />
-            Personal & local
+            {demo ? 'Demo · sample data' : 'Personal & local'}
           </span>
         </header>
         <main id="main-content" tabIndex={-1}>
+          {demo && (
+            <p className="demo-banner" role="note">
+              <strong>You're viewing a demo.</strong> The companies, people and emails are made up, and anything you
+              change resets every 6 hours. The live weekly search is turned off here.{' '}
+              <a href="https://github.com/Scarlett2025Lee/Signal" target="_blank" rel="noreferrer">
+                View the code on GitHub
+              </a>
+            </p>
+          )}
           <UpdateNotice />
           <Routes>
             <Route path="/" element={<Dashboard />} />

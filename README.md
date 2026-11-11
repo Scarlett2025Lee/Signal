@@ -61,6 +61,10 @@ The Windows launcher `Start-Signal.cmd` calls `Start-Signal.ps1`. It requires th
 
 The launcher has run successfully on Windows 11 (see `.cache/logs/startup.log`). Because this folder is a Git checkout, its automatic update step stops before writing any file and the launcher continues with the local code (see Automatic updates). Windows itself, PowerShell, antivirus, and an already installed browser may still use system files on C:; the application cannot guarantee zero system-disk writes.
 
+## Public demo
+
+A public demo with made-up sample data can be deployed from this repository. It never contains your real data, turns off news fetching, and resets every 6 hours. See [DEPLOY.md](DEPLOY.md).
+
 ## Storage
 
 By default, `data/signal.sqlite3` lives under this project, regardless of the shell's working directory. Override it with the absolute path `SIGNAL_DATA_DIR`; relative/empty values are rejected. An unavailable directory causes startup to fail, without a fallback to AppData. Default production port is 1421; `SIGNAL_PORT` can override it when running just the built server. Development's Vite proxy and the Windows browser launcher use 1421.

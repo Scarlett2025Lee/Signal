@@ -1,0 +1,8 @@
+# Render blueprint for Signal's public demo (sample data only). See DEPLOY.md.
+services:
+  - type: web
+    name: signal-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true

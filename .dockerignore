@@ -1,0 +1,13 @@
+# Never send personal data or local tooling into the image.
+data/
+resumes/
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+.cache/
+.tools/
+.claude/
+node_modules/
+dist/
+release.json
+.git/

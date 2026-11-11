@@ -24,6 +24,7 @@ export function createApp(
     email,
     updates,
     applicationVersion = 'unknown',
+    demo = false,
   } = {},
 ) {
   const root = resolve(staticRoot);
@@ -31,8 +32,9 @@ export function createApp(
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Cache-Control', 'no-store');
     // This service is private to this computer. Reject DNS-rebinding hostnames.
+    // The public demo holds only sample data, so it answers on any hostname.
     const authority = req.headers.host ?? '';
-    if (!/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(authority)) {
+    if (!demo && !/^(127\.0\.0\.1|localhost)(:\d+)?$/.test(authority)) {
       res.writeHead(403);
       res.end('Invalid local hostname');
       return;
@@ -43,6 +45,16 @@ export function createApp(
     };
     try {
       const url = new URL(req.url, 'http://127.0.0.1');
+      // The demo never reaches out to news sites or writes files to disk.
+      if (
+        demo &&
+        (url.pathname === '/api/resume-pdf' ||
+          url.pathname === '/api/funding/generate' ||
+          url.pathname === '/api/funding/schedule')
+      ) {
+        json(403, { error: 'Turned off in the demo. The demo uses sample data and resets every 6 hours.' });
+        return;
+      }
       // Résumé PDFs: the recruiting site is opened from disk, so it posts as a simple text/plain request.
       if (url.pathname === '/api/resume-pdf') {
         if (!allowedResumeOrigin(req.headers.origin)) {
@@ -83,7 +95,12 @@ export function createApp(
         }
         if (
           req.headers.origin &&
-          ![`http://${authority}`, 'http://127.0.0.1:1420', 'http://localhost:1420'].includes(req.headers.origin)
+          ![
+            `http://${authority}`,
+            ...(demo ? [`https://${authority}`] : []),
+            'http://127.0.0.1:1420',
+            'http://localhost:1420',
+          ].includes(req.headers.origin)
         ) {
           json(403, { error: 'Invalid request origin' });
           return;
@@ -195,7 +212,7 @@ export function createApp(
         return;
       }
       if (url.pathname === '/api/health') {
-        json(200, { status: 'ok', database: 'connected', version: applicationVersion });
+        json(200, { status: 'ok', database: 'connected', version: applicationVersion, demo });
         return;
       }
       if (url.pathname === '/api/dashboard') {
