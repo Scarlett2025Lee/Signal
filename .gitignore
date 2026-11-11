@@ -9,3 +9,6 @@ data/
 .cache/
 .tools/
 release.json
+
+# Résumé PDFs saved from the recruiting site
+resumes/

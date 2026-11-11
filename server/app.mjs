@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import { dashboardStats, outreachPipeline, projectRoot } from './database.mjs';
 import { FundingError } from './funding.mjs';
+import { allowedResumeOrigin, saveResumePdf } from './resume-pdf.mjs';
 
 const contentTypes = {
   '.html': 'text/html; charset=utf-8',
@@ -42,6 +43,25 @@ export function createApp(
     };
     try {
       const url = new URL(req.url, 'http://127.0.0.1');
+      // Résumé PDFs: the recruiting site is opened from disk, so it posts as a simple text/plain request.
+      if (url.pathname === '/api/resume-pdf') {
+        if (!allowedResumeOrigin(req.headers.origin)) {
+          json(403, { error: 'Invalid request origin' });
+          return;
+        }
+        res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+        if (req.method !== 'POST') {
+          res.setHeader('Allow', 'POST');
+          json(405, { error: 'Method not allowed' });
+          return;
+        }
+        try {
+          json(200, await saveResumePdf(req));
+        } catch (error) {
+          json(error.status ?? 500, { error: error.message });
+        }
+        return;
+      }
       const method = req.method === 'HEAD' ? 'GET' : req.method;
       // CRM and email services expose route tables; both go through the same write checks below.
       const routeHandler = crm?.route(method, url.pathname) ?? email?.route(method, url.pathname) ?? null;
